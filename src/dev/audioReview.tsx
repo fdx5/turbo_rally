@@ -83,12 +83,12 @@ function App() {
   const no = list.filter((e) => st[e.id] === 'no').length;
   const shown = list.filter((e) => filter === 'all' || (filter === 'todo' && !st[e.id]) || st[e.id] === filter);
   return (
-    <div style={{ height: '100%', overflowY: 'auto', touchAction: 'pan-y', padding: 20, background: 'repeating-linear-gradient(135deg,#fff3f8 0 30px,#ffeaf3 30px 60px)' }}>
-      <div className="topbar" style={{ position: 'sticky', top: 0, zIndex: 2, background: '#fff8ee', border: '3px solid #3d2c4e', borderRadius: 16, padding: 10, boxShadow: '0 5px 0 #3d2c4e' }}>
+    <div style={{ height: '100%', overflowY: 'auto', touchAction: 'pan-y', padding: 20, background: 'repeating-linear-gradient(135deg,#F2F8FF 0 30px,#E4F0FF 30px 60px)' }}>
+      <div className="topbar" style={{ position: 'sticky', top: 0, zIndex: 2, background: '#fff8ee', border: '3px solid #1E2B4A', borderRadius: 16, padding: 10, boxShadow: '0 5px 0 #1E2B4A' }}>
         <h1 style={{ fontSize: 28 }}>사운드 리뷰</h1>
         <span className="chip">전체 {list.length}</span>
         <span className="chip" style={{ color: '#3fc46e' }}>승인 {ok}</span>
-        <span className="chip" style={{ color: '#ff5c93' }}>반려 {no}</span>
+        <span className="chip" style={{ color: '#FF5A36' }}>반려 {no}</span>
         <div className="spacer" />
         {(['all', 'todo', 'ok', 'no'] as const).map((f) => (
           <button key={f} className={`tab ${filter === f ? 'on' : ''}`} onClick={() => setFilter(f)}>
@@ -118,13 +118,13 @@ function App() {
           <div key={g} className="panel" style={{ margin: '16px 0', padding: 12 }}>
             <h3 style={{ margin: '0 0 8px', fontFamily: 'var(--head)', fontWeight: 400 }}>{g}</h3>
             {items.map((e) => (
-              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '2px dashed #f0e2f7', flexWrap: 'wrap' }}>
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '2px dashed #E3ECF7', flexWrap: 'wrap' }}>
                 <button className="btn small sky" onClick={() => audio.unlock().then(() => e.play())}>
                   ▶ 재생
                 </button>
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <div>{e.label}</div>
-                  {e.detail && <small style={{ color: '#6e5f80' }}>{e.detail}</small>}
+                  {e.detail && <small style={{ color: '#4B5A78' }}>{e.detail}</small>}
                 </div>
                 <button className={`btn small ${st[e.id] === 'ok' ? 'mint' : 'ghost'}`} onClick={() => set(e.id, st[e.id] === 'ok' ? undefined : 'ok')}>
                   ✅ 승인

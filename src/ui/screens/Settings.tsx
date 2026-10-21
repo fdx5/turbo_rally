@@ -14,7 +14,7 @@ import { useApp } from '../../game/app';
 export function SettingsBody() {
   const s = useSettings();
   const row = (label: string, el: React.ReactNode) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f3e9fa' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #E8EFF8' }}>
       <span style={{ width: 150 }}>{label}</span>
       {el}
     </div>
@@ -47,7 +47,7 @@ export function SettingsBody() {
       ))}
     </div>
   );
-  const toggle = (k: 'screenShake' | 'autoAccel' | 'restReminder' | 'showFps') => (
+  const toggle = (k: 'screenShake' | 'autoAccel' | 'restReminder' | 'showFps' | 'rearMirror') => (
     <button className={`tab ${s[k] ? 'on' : ''}`} onClick={() => s.set({ [k]: !s[k] })}>
       {s[k] ? '켜짐' : '꺼짐'}
     </button>
@@ -79,9 +79,32 @@ export function SettingsBody() {
       {row('자동 가속(터치)', toggle('autoAccel'))}
       {row('화면 흔들림', toggle('screenShake'))}
       {row('1시간 휴식 알림', toggle('restReminder'))}
+      {row('룸미러(후방 화면)', toggle('rearMirror'))}
       {row('FPS 표시', toggle('showFps'))}
+      {row(
+        '현재 렌더링',
+        <span className="chip">
+          {(() => {
+            try {
+              const r = getShell().R;
+              return `${{ low: '저', medium: '중', high: '고', ultra: '울트라' }[r.preset]} · 해상도 배율 ×${r.renderScale.toFixed(2)}`;
+            } catch {
+              return '-';
+            }
+          })()}
+        </span>,
+      )}
+      {row(
+        '전체 화면',
+        <button
+          className="tab"
+          onClick={() => (document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.())}
+        >
+          전환
+        </button>,
+      )}
       {row('BRAND_MODE', <span className="chip">{BRAND_MODE === 'real' ? 'real (실제 로고)' : 'parody (패러디)'}</span>)}
-      <div style={{ fontSize: 14, color: '#6e5f80', marginTop: 10, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 14, color: '#4B5A78', marginTop: 10, lineHeight: 1.6 }}>
         ⌨️ 조작: 방향키/WASD 이동 · Space 드리프트(점프 홉) · Shift/E 아이템 · Q 고유기 · C 뒤 보기 · Esc 일시정지 · 🎮 게임패드 지원
       </div>
     </div>
@@ -112,8 +135,8 @@ export function Missions() {
       <div key={m.id} className="card" style={{ cursor: 'default', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 17 }}>{d.text}</div>
-          <div style={{ height: 10, background: '#f1e6f8', borderRadius: 6, overflow: 'hidden', marginTop: 4 }}>
-            <div style={{ width: `${(m.progress / d.goal) * 100}%`, height: '100%', background: done ? '#7bd389' : 'linear-gradient(90deg,#ffc8dd,#a98be0)' }} />
+          <div style={{ height: 10, background: '#E3ECF7', borderRadius: 6, overflow: 'hidden', marginTop: 4 }}>
+            <div style={{ width: `${(m.progress / d.goal) * 100}%`, height: '100%', background: done ? '#7bd389' : 'linear-gradient(90deg,#CFE6FF,#2F6FDB)' }} />
           </div>
           <small>
             {m.progress}/{d.goal} · 🪙{d.reward.toLocaleString()}
@@ -145,7 +168,7 @@ export function Missions() {
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
           {profile.weekly.missions.map(card)}
         </div>
-        {msg && <p style={{ color: '#ff4d7e' }}>{msg}</p>}
+        {msg && <p style={{ color: '#E8412C' }}>{msg}</p>}
         <div style={{ marginTop: 16 }}>
           <Achievements />
         </div>

@@ -31,21 +31,14 @@ export function RaceView() {
     }, 50);
     return () => clearInterval(id);
   }, [phase]);
-  useEffect(() => {
-    // fullscreen + landscape lock on mobile (§14)
-    if (isTouch) {
-      document.documentElement.requestFullscreen?.().catch(() => {});
-      (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape').catch(() => {});
-    }
-  }, []);
   return (
     <>
       {phase === 'loading' && (
-        <div className="screen" style={{ alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(160deg,#ffd1e6,#e2d1ff)', zIndex: 5 }}>
+        <div className="screen" style={{ alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(160deg,#D6EAFF,#e2d1ff)', zIndex: 5 }}>
           <div className="title-logo" style={{ fontSize: 64, animation: 'bob 1.6s ease-in-out infinite' }}>
             TURBO RALLY
           </div>
-          <p style={{ color: '#fff', fontSize: 22, textShadow: '0 2px 4px #9d7bc9' }}>트랙을 준비하고 있어요… 🏗️</p>
+          <p style={{ color: '#fff', fontSize: 22, textShadow: '0 2px 4px #2F6FDB' }}>트랙을 준비하고 있어요… 🏗️</p>
           <p style={{ color: '#fff' }}>💡 드리프트를 길게 유지하면 하늘 → 복숭아 → 라벤더 불꽃! 3단 미니터보가 가장 빨라요</p>
         </div>
       )}
@@ -75,6 +68,9 @@ export function RaceView() {
             >
               🔄 다시 시작
             </button>
+            <button className="btn ghost" onClick={toggleFullscreen}>
+              {document.fullscreenElement ? '전체 화면 끄기' : '전체 화면'}
+            </button>
             <button className="btn lav" onClick={() => setSettings(true)}>
               ⚙️ 설정
             </button>
@@ -103,6 +99,14 @@ export function RaceView() {
       )}
     </>
   );
+}
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  else
+    document.documentElement
+      .requestFullscreen?.()
+      .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape'))
+      .catch(() => {});
 }
 function audio_pause() {
   import('../../audio/engine').then(({ audio }) => audio.ctx?.suspend());

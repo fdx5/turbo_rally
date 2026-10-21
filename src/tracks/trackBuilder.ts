@@ -9,6 +9,7 @@ import { buildProp } from '../art/props';
 import { MeshBuilder } from '../art/builder';
 import { Rng } from '../core/rng';
 import { buildClouds, buildSky, buildWater } from '../art/sky';
+import { buildDressing } from './dressing';
 
 const SURF: Record<SurfaceName | 'road', Surface> = {
   road: Surface.Road,
@@ -502,7 +503,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   let water: THREE.Mesh | null = null;
   if (!def.voidWorld) {
     const size = radius * 2 + 900;
-    const res = 150;
+    const res = 240;
     const g = new THREE.PlaneGeometry(size, size, res, res).rotateX(-Math.PI / 2);
     const pos = g.attributes.position as THREE.BufferAttribute;
     const cols = new Float32Array(pos.count * 3);
@@ -677,6 +678,9 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     if (c.outline) group.add(c.outline);
   }
 
+  // ---------- circuit dressing (grandstands, gantries, tyre walls, flags) ----------
+  group.add(buildDressing(def, theme, main, groundHeight));
+
   // ---------- sky ----------
   const sky = buildSky(theme);
   group.add(sky);
@@ -829,7 +833,7 @@ function scatterProps(
       const name = rng.pick(theme.props);
       const y = def.voidWorld ? main.py[i] - 0.4 : groundHeight(x, z) - 0.1;
       if (def.voidWorld && off > lim + 6) continue;
-      place(name, x, y, z, rng.range(0, Math.PI * 2), rng.range(0.85, 1.2), 0.6);
+      place(name, x, y, z, rng.range(0, Math.PI * 2), rng.range(0.85, 1.2), 0.9);
     }
   }
   // infield / outfield fill
@@ -842,7 +846,7 @@ function scatterProps(
     if (!clearOf(x, z, 8)) continue;
     const y = groundHeight(x, z);
     if (def.water && y < def.water.y + 0.3) continue;
-    place(rng.pick(theme.props), x, y - 0.1, z, rng.range(0, 6.28), rng.range(0.9, 1.4), 0.5);
+    place(rng.pick(theme.props), x, y - 0.1, z, rng.range(0, 6.28), rng.range(0.9, 1.4), 0.75);
   }
   // landmarks
   for (const lm of theme.landmarks) {
@@ -853,7 +857,7 @@ function scatterProps(
       const z = centre.z + Math.sin(a) * d;
       if (!clearOf(x, z, 50)) continue;
       const y = def.voidWorld ? minY - rng.range(10, 30) : groundHeight(x, z);
-      place(lm, x, y, z, Math.atan2(centre.x - x, centre.z - z), 1, 0.8);
+      place(lm, x, y, z, Math.atan2(centre.x - x, centre.z - z), 1, 1);
       break;
     }
   }

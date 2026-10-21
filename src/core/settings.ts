@@ -12,6 +12,7 @@ export interface Settings {
   touchSteer: 'stick' | 'buttons' | 'tilt';
   restReminder: boolean;
   showFps: boolean;
+  rearMirror: boolean;
 }
 const DEFAULTS: Settings = {
   quality: 'auto',
@@ -24,6 +25,7 @@ const DEFAULTS: Settings = {
   touchSteer: 'stick',
   restReminder: true,
   showFps: false,
+  rearMirror: true,
 };
 const KEY = 'tr.settings.v1';
 function load(): Settings {

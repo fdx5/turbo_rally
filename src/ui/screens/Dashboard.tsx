@@ -36,14 +36,14 @@ function LineChart({ values, max = 8 }: { values: number[]; max?: number }) {
       {[1, 4, 8].map((r) => (
         <g key={r}>
           <line x1="16" x2={W - 10} y1={15 + ((r - 1) / (max - 1)) * (H - 30)} y2={15 + ((r - 1) / (max - 1)) * (H - 30)} stroke="#f0e4f7" />
-          <text x="2" y={19 + ((r - 1) / (max - 1)) * (H - 30)} fontSize="10" fill="#9d7bc9">
+          <text x="2" y={19 + ((r - 1) / (max - 1)) * (H - 30)} fontSize="10" fill="#2F6FDB">
             {r}
           </text>
         </g>
       ))}
-      <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#ff8fb8" strokeWidth="3" strokeLinejoin="round" />
+      <polyline points={pts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#FF6B3D" strokeWidth="3" strokeLinejoin="round" />
       {pts.map((p, i) => (
-        <circle key={i} cx={p[0]} cy={p[1]} r="5" fill={values[i] <= 3 ? '#ffcf4a' : '#fff'} stroke="#ff8fb8" strokeWidth="2" />
+        <circle key={i} cx={p[0]} cy={p[1]} r="5" fill={values[i] <= 3 ? '#ffcf4a' : '#fff'} stroke="#FF6B3D" strokeWidth="2" />
       ))}
     </svg>
   );
@@ -55,7 +55,7 @@ function Bars({ data }: { data: { label: string; v: number; color?: string }[] }
       {data.map((d) => (
         <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 12 }}>
           <div className="num">{d.v}</div>
-          <div style={{ height: (d.v / max) * 92 + 2, background: d.color ?? 'linear-gradient(#ffc8dd,#ff8fb8)', borderRadius: '8px 8px 4px 4px' }} />
+          <div style={{ height: (d.v / max) * 92 + 2, background: d.color ?? 'linear-gradient(#CFE6FF,#FF6B3D)', borderRadius: '8px 8px 4px 4px' }} />
           <div>{d.label}</div>
         </div>
       ))}
@@ -106,7 +106,7 @@ function Overview() {
   const dist = Array.from({ length: 8 }, (_, i) => ({ label: `${i + 1}위`, v: races.filter((r) => r.position === i + 1).length }));
   const tile = (label: string, value: string, icon: string) => (
     <div className="card" style={{ cursor: 'default', padding: 10, minWidth: 130 }}>
-      <div style={{ fontSize: 13, color: '#9d7bc9' }}>
+      <div style={{ fontSize: 13, color: '#2F6FDB' }}>
         {icon} {label}
       </div>
       <div className="num" style={{ fontSize: 24 }}>
@@ -181,7 +181,7 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
           <div style={{ minWidth: 280 }}>
             <b>최종 순위</b>
             {[...detail.entrants].sort((a, b) => a.position - b.position).map((e, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', background: e.isPlayer ? '#fff0f7' : undefined, borderRadius: 8, padding: 2 }}>
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', background: e.isPlayer ? '#EEF6FF' : undefined, borderRadius: 8, padding: 2 }}>
                 <b style={{ width: 20 }}>{e.position}</b>
                 <img src={portrait(e.charId as CharId, {}, 48)} style={{ width: 26 }} alt="" />
                 <span style={{ flex: 1 }}>{CHAR_BY_ID[e.charId as CharId]?.name}</span>
@@ -230,7 +230,7 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
         <thead>
-          <tr style={{ color: '#9d7bc9', textAlign: 'left' }}>
+          <tr style={{ color: '#2F6FDB', textAlign: 'left' }}>
             <th>날짜</th>
             <th>모드</th>
             <th>트랙</th>
@@ -245,7 +245,7 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
         </thead>
         <tbody>
           {view.map((r) => (
-            <tr key={r.id} onClick={() => setDetail(r)} style={{ cursor: 'pointer', borderTop: '1px solid #f3e9fa' }}>
+            <tr key={r.id} onClick={() => setDetail(r)} style={{ cursor: 'pointer', borderTop: '1px solid #E8EFF8' }}>
               <td>{new Date(r.at).toLocaleDateString()}</td>
               <td>{r.mode === 'race' ? '대전' : r.mode === 'timeattack' ? '타임어택' : '연습'}</td>
               <td>{TRACK_BY_ID[r.trackId]?.name}</td>
@@ -347,7 +347,7 @@ function Ranking() {
       </div>
       <h3 style={{ margin: '4px 0' }}>🏆 {TRACK_BY_ID[track].name} 타임어택 TOP 100</h3>
       {err && <p>{err}</p>}
-      {!member && <p style={{ color: '#9d7bc9' }}>랭킹 등록은 회원 전용이에요.</p>}
+      {!member && <p style={{ color: '#2F6FDB' }}>랭킹 등록은 회원 전용이에요.</p>}
       {rows?.map((r) => (
         <div key={r.userId} style={{ display: 'flex', gap: 10, padding: 4, borderRadius: 8, background: r.userId === profile.userId ? '#fff0b8' : undefined, alignItems: 'center' }}>
           <b style={{ width: 34 }}>{r.rank}</b>
@@ -442,7 +442,7 @@ function ItemsTab({ races }: { races: RaceRecord[] }) {
       {mostHit && mostHit[1].gotHit > 0 && <div className="chip">😵 가장 많이 맞은 아이템: {ALL_ITEMS[mostHit[0]]?.name ?? '트랙 기믹'} ({mostHit[1].gotHit}회)</div>}
       <table style={{ width: '100%', fontSize: 14, marginTop: 8 }}>
         <thead>
-          <tr style={{ textAlign: 'left', color: '#9d7bc9' }}>
+          <tr style={{ textAlign: 'left', color: '#2F6FDB' }}>
             <th>아이템</th>
             <th>사용</th>
             <th>명중</th>
@@ -474,10 +474,10 @@ function Ledger() {
   return (
     <div>
       {p.ledger.slice(0, 200).map((l, i) => (
-        <div key={i} style={{ display: 'flex', gap: 10, fontSize: 14, borderBottom: '1px solid #f6eefb', padding: '3px 0' }}>
-          <span style={{ width: 150, color: '#9d7bc9' }}>{new Date(l.t).toLocaleString()}</span>
+        <div key={i} style={{ display: 'flex', gap: 10, fontSize: 14, borderBottom: '1px solid #EDF2F9', padding: '3px 0' }}>
+          <span style={{ width: 150, color: '#2F6FDB' }}>{new Date(l.t).toLocaleString()}</span>
           <span style={{ flex: 1 }}>{l.reason}</span>
-          <b className="num" style={{ color: l.delta >= 0 ? '#3cb36a' : '#ff4d7e' }}>
+          <b className="num" style={{ color: l.delta >= 0 ? '#3cb36a' : '#E8412C' }}>
             {l.delta >= 0 ? '+' : ''}
             {l.delta.toLocaleString()}
           </b>
@@ -490,8 +490,8 @@ function Ledger() {
 export function Achievements() {
   const p = useProfile((s) => s.profile);
   const bar = (v: number, g: number) => (
-    <div style={{ height: 8, background: '#f1e6f8', borderRadius: 5, overflow: 'hidden', marginTop: 3 }}>
-      <div style={{ width: `${Math.min(100, (v / g) * 100)}%`, height: '100%', background: v >= g ? '#7bd389' : 'linear-gradient(90deg,#ffc8dd,#a98be0)' }} />
+    <div style={{ height: 8, background: '#E3ECF7', borderRadius: 5, overflow: 'hidden', marginTop: 3 }}>
+      <div style={{ width: `${Math.min(100, (v / g) * 100)}%`, height: '100%', background: v >= g ? '#7bd389' : 'linear-gradient(90deg,#CFE6FF,#2F6FDB)' }} />
     </div>
   );
   return (
@@ -514,7 +514,7 @@ export function Achievements() {
               <div style={{ fontSize: 14 }}>
                 {st?.done ? '🏅' : '🔸'} {a.name}
               </div>
-              <div style={{ fontSize: 12, color: '#6e5f80' }}>
+              <div style={{ fontSize: 12, color: '#4B5A78' }}>
                 {a.desc} · 🪙{a.reward.toLocaleString()}
                 {a.title ? ` · 칭호「${a.title}」` : ''}
               </div>

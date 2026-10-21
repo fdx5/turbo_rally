@@ -464,6 +464,34 @@ export class RaceSession {
   private render(dt: number) {
     this.R.renderer.info.reset();
     this.R.render(dt);
+    if (useSettings.getState().rearMirror && (this.phase === 'race' || this.phase === 'countdown')) this.renderMirror();
+  }
+
+  /** Rear-view mirror: second view of the scene into a small top-right viewport (scissored). */
+  private rearCam = new THREE.PerspectiveCamera(55, 2.8, 0.5, 320);
+  private renderMirror() {
+    const r = this.R.renderer;
+    const { x, y, w, h } = mirrorRect();
+    const b = this.player.body;
+    const fx = Math.sin(b.yaw);
+    const fz = Math.cos(b.yaw);
+    const p = this.player.model.root.position;
+    const top = this.player.model.vehicle.bp.height;
+    this.rearCam.aspect = w / h;
+    this.rearCam.updateProjectionMatrix();
+    this.rearCam.position.set(p.x + fx * 0.6, p.y + top + 0.9, p.z + fz * 0.6);
+    this.rearCam.lookAt(p.x - fx * 25, p.y + 1.0, p.z - fz * 25);
+    const H = window.innerHeight;
+    const shadowAuto = r.shadowMap.autoUpdate;
+    r.shadowMap.autoUpdate = false;
+    r.setScissorTest(true);
+    r.setScissor(x, H - y - h, w, h);
+    r.setViewport(x, H - y - h, w, h);
+    r.clear(true, true, false);
+    r.render(this.scene, this.rearCam);
+    r.setScissorTest(false);
+    r.setViewport(0, 0, window.innerWidth, H);
+    r.shadowMap.autoUpdate = shadowAuto;
   }
 
   private stepPhysics(h: number, racing: boolean, pc: KartControls) {
@@ -1092,6 +1120,13 @@ export class RaceSession {
 }
 
 const ghostMat = new THREE.MeshBasicMaterial({ color: '#BFE3FF', transparent: true, opacity: 0.38, depthWrite: false });
+/** Mirror rectangle in CSS px (top-left origin); the HUD frame uses the same formula. */
+export function mirrorRect() {
+  const W = window.innerWidth;
+  const w = Math.round(Math.min(380, Math.max(220, W * 0.26)));
+  const h = Math.round(w * 0.34);
+  return { x: W - w - 16, y: 12, w, h };
+}
 export function fmt(ms: number) {
   const m = Math.floor(ms / 60000);
   const s = Math.floor((ms % 60000) / 1000);

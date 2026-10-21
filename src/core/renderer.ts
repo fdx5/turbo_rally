@@ -7,6 +7,7 @@ import type { QualityLevel } from './settings';
 export type Preset = Exclude<QualityLevel, 'auto'>;
 export interface PresetDef {
   dpr: number;
+  minDpr: number; // supersampling floor on 1x displays (sharper image)
   shadow: number;
   bloom: boolean;
   smaa: boolean;
@@ -16,10 +17,10 @@ export interface PresetDef {
   farOutline: number;
 }
 export const PRESETS: Record<Preset, PresetDef> = {
-  low: { dpr: 0.75, shadow: 0, bloom: false, smaa: false, particles: 0.35, props: 0.45, outlines: true, farOutline: 18 },
-  medium: { dpr: 1.0, shadow: 1024, bloom: true, smaa: false, particles: 0.65, props: 0.75, outlines: true, farOutline: 35 },
-  high: { dpr: 1.5, shadow: 2048, bloom: true, smaa: true, particles: 1, props: 1, outlines: true, farOutline: 60 },
-  ultra: { dpr: 2.0, shadow: 2048, bloom: true, smaa: true, particles: 1.2, props: 1.25, outlines: true, farOutline: 120 },
+  low: { dpr: 0.75, minDpr: 0.75, shadow: 0, bloom: false, smaa: false, particles: 0.35, props: 0.45, outlines: true, farOutline: 18 },
+  medium: { dpr: 1.25, minDpr: 1.0, shadow: 1024, bloom: true, smaa: false, particles: 0.65, props: 0.75, outlines: true, farOutline: 35 },
+  high: { dpr: 1.75, minDpr: 1.3, shadow: 2048, bloom: true, smaa: true, particles: 1, props: 1, outlines: true, farOutline: 60 },
+  ultra: { dpr: 2.0, minDpr: 1.6, shadow: 4096, bloom: true, smaa: true, particles: 1.2, props: 1.25, outlines: true, farOutline: 120 },
 };
 const ORDER: Preset[] = ['low', 'medium', 'high', 'ultra'];
 export const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent));
@@ -55,7 +56,7 @@ export class Renderer {
     this.renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(this.renderPass);
     this.bloom = new BloomEffect({ luminanceThreshold: 1.0, luminanceSmoothing: 0.25, intensity: 0.85, mipmapBlur: true, radius: 0.7 });
-    this.smaa = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
+    this.smaa = new SMAAEffect({ preset: SMAAPreset.HIGH });
     this.vignette = new VignetteEffect({ darkness: 0.28, offset: 0.35 });
     this.auto = quality === 'auto';
     this.preset = quality === 'auto' ? (isMobile ? 'medium' : 'high') : quality;
@@ -68,7 +69,8 @@ export class Renderer {
   }
   setQuality(q: QualityLevel) {
     this.auto = q === 'auto';
-    if (q !== 'auto') this.preset = q;
+    this.preset = q === 'auto' ? this.startPreset : q;
+    this.dprScale = 1;
     this.applyPreset();
   }
   setSceneCamera(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
@@ -78,6 +80,8 @@ export class Renderer {
     this.renderPass.mainCamera = camera;
     this.rebuildEffects();
     this.resize();
+    this.settleUntil = performance.now() + 4000;
+    this.frameTimes.length = 0;
   }
   private rebuildEffects() {
     if (this.effectPass) {
@@ -102,7 +106,7 @@ export class Renderer {
   resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, this.def.dpr) * this.dprScale;
+    const dpr = Math.min(Math.max(window.devicePixelRatio || 1, this.def.minDpr), this.def.dpr) * this.dprScale;
     this.renderer.setPixelRatio(Math.max(0.5, dpr));
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h, false);
@@ -116,34 +120,54 @@ export class Renderer {
     this.composer.render(dt);
   }
   /** Auto quality: watch 120-frame average; step down (pixel ratio → shadows → bloom → particles) (§13). */
+  /** Ignore hitches right after a scene switch (track build / menu change). */
+  private settleUntil = 0;
+  private floor(): Preset {
+    return isMobile ? 'low' : 'medium';
+  }
+  private startPreset: Preset = isMobile ? 'medium' : 'high';
+  /**
+   * Auto quality: uses the MEDIAN frame time over 3 s (robust to 60 Hz vsync jitter and loading
+   * hitches). Steps down only below ~50 fps, steps back up when there is headroom (§13).
+   */
   sample(frameMs: number) {
     if (!this.auto) return;
+    const now = performance.now();
+    if (frameMs > 100 || now < this.settleUntil) {
+      this.frameTimes.length = 0;
+      return;
+    }
     this.frameTimes.push(frameMs);
-    if (this.frameTimes.length > 120) this.frameTimes.shift();
-    this.cooldown -= frameMs / 1000;
-    if (this.frameTimes.length < 120 || this.cooldown > 0) return;
-    const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
-    if (avg > 17.5) {
-      if (this.dprScale > 0.8) {
-        this.dprScale -= 0.1;
+    if (this.frameTimes.length < 180) return;
+    const sorted = [...this.frameTimes].sort((x, y) => x - y);
+    const med = sorted[sorted.length >> 1];
+    this.frameTimes.length = 0;
+    const i = ORDER.indexOf(this.preset);
+    if (med > 20) {
+      if (this.dprScale > 0.85) {
+        this.dprScale = Math.max(0.8, this.dprScale - 0.1);
         this.resize();
-      } else {
-        const i = ORDER.indexOf(this.preset);
-        if (i > 0) {
-          this.preset = ORDER[i - 1];
-          this.dprScale = 1;
-          this.applyPreset();
-        }
+      } else if (i > ORDER.indexOf(this.floor())) {
+        this.preset = ORDER[i - 1];
+        this.dprScale = 1;
+        this.applyPreset();
       }
-      this.frameTimes.length = 0;
-      this.cooldown = 2.5;
-    } else if (avg < 11 && this.dprScale < 1) {
-      this.dprScale = Math.min(1, this.dprScale + 0.05);
-      this.resize();
-      this.frameTimes.length = 0;
-      this.cooldown = 4;
+      this.settleUntil = now + 2000;
+    } else if (med < 13.5) {
+      if (this.dprScale < 1) {
+        this.dprScale = Math.min(1, this.dprScale + 0.1);
+        this.resize();
+      } else if (i < ORDER.indexOf(this.startPreset)) {
+        this.preset = ORDER[i + 1];
+        this.applyPreset();
+      }
+      this.settleUntil = now + 3000;
     }
   }
+  get renderScale() {
+    return this.renderer.getPixelRatio();
+  }
+
 }
 
 export function makeLights(sunColor: string, sunI: number, hemiSky: string, hemiGround: string, hemiI: number, amb: number, shadowSize: number) {

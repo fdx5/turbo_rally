@@ -43,7 +43,7 @@ export function ModeSelect() {
             <div className="chip" style={{ margin: '8px 0' }}>
               골드 ×{DIFF_MUL[c.d]}
             </div>
-            <div style={{ fontSize: 15, color: '#6e5f80' }}>{c.desc}</div>
+            <div style={{ fontSize: 15, color: '#4B5A78' }}>{c.desc}</div>
           </div>
         ))}
       </div>
@@ -84,7 +84,7 @@ export function TrackSelect() {
                 <div style={{ position: 'relative' }}>
                   <img src={trackImage(t)} style={{ width: '100%', borderRadius: 14, display: 'block', filter: locked ? 'brightness(0.55) saturate(0.4)' : undefined }} alt="" />
                   {locked && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', textAlign: 'center', fontSize: 15, textShadow: '0 2px 4px #4a3b52' }}>
+                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', textAlign: 'center', fontSize: 15, textShadow: '0 2px 4px #1E2B4A' }}>
                       <div>
                         <div style={{ fontSize: 40 }}>🔒</div>
                         {memberLock ? '회원 전용' : `트랙 ${t.no - 1}에서 3등 이내 입상 시 오픈!`}
@@ -96,7 +96,7 @@ export function TrackSelect() {
                   </div>
                 </div>
                 <div style={{ fontSize: 20, marginTop: 8 }}>{t.name}</div>
-                <div style={{ fontSize: 13, color: '#6e5f80', minHeight: 34 }}>{t.desc}</div>
+                <div style={{ fontSize: 13, color: '#4B5A78', minHeight: 34 }}>{t.desc}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                   <Stars n={st} />
                   <span style={{ fontSize: 13 }}>
@@ -104,7 +104,7 @@ export function TrackSelect() {
                   </span>
                 </div>
                 {mode === 'timeattack' && (
-                  <div style={{ fontSize: 12, color: '#9d7bc9' }}>
+                  <div style={{ fontSize: 12, color: '#2F6FDB' }}>
                     🥇{fmtMs(t.medals.gold)} 🥈{fmtMs(t.medals.silver)} 🥉{fmtMs(t.medals.bronze)}
                   </div>
                 )}
@@ -140,7 +140,7 @@ export function CharacterSelect() {
       <div className="spacer" />
       <div className="panel" style={{ alignSelf: 'center', padding: '10px 18px', textAlign: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 30 }}>
-          {c.name} <small style={{ fontSize: 16, color: '#9d7bc9' }}>{c.motif}</small>
+          {c.name} <small style={{ fontSize: 16, color: '#2F6FDB' }}>{c.motif}</small>
         </div>
         <div style={{ fontSize: 16 }}>
           체급 <b>{c.weightClass}</b> ·{' '}
@@ -148,8 +148,8 @@ export function CharacterSelect() {
             .map(([k, v]) => `${STAT_LABEL[k as StatKey]} ${v! > 0 ? '+' : ''}${v}`)
             .join(', ') || '보정 없음'}
         </div>
-        <div style={{ fontSize: 16, color: '#ff6fa3' }}>✨ {c.passive.text}</div>
-        <div style={{ fontSize: 15, color: '#6e5f80' }}>"{c.lines.select}"</div>
+        <div style={{ fontSize: 16, color: '#FF5A36' }}>✨ {c.passive.text}</div>
+        <div style={{ fontSize: 15, color: '#4B5A78' }}>"{c.lines.select}"</div>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
         {CHARACTERS.map((ch) => (
@@ -181,14 +181,14 @@ function Radar({ stats, base }: { stats: Record<StatKey, number>; base: Record<S
   return (
     <svg viewBox="-90 -90 180 180" style={{ width: 170, height: 170 }}>
       {[2, 4, 6, 8, 10].map((r) => (
-        <polygon key={r} points={STAT_KEYS.map((_, i) => pt(i, r)).join(' ')} fill="none" stroke="#eadcf5" />
+        <polygon key={r} points={STAT_KEYS.map((_, i) => pt(i, r)).join(' ')} fill="none" stroke="#D5E2F2" />
       ))}
       <polygon points={STAT_KEYS.map((k, i) => pt(i, base[k])).join(' ')} fill="rgba(162,210,255,0.35)" stroke="#a2d2ff" strokeWidth="2" />
-      <polygon points={STAT_KEYS.map((k, i) => pt(i, stats[k])).join(' ')} fill="rgba(255,143,184,0.45)" stroke="#ff8fb8" strokeWidth="3" style={{ transition: 'all .4s' }} />
+      <polygon points={STAT_KEYS.map((k, i) => pt(i, stats[k])).join(' ')} fill="rgba(255,143,184,0.45)" stroke="#FF6B3D" strokeWidth="3" style={{ transition: 'all .4s' }} />
       {STAT_KEYS.map((k, i) => {
         const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
         return (
-          <text key={k} x={Math.cos(a) * 82} y={Math.sin(a) * 82} fontSize="11" textAnchor="middle" dominantBaseline="middle" fill="#6e5f80">
+          <text key={k} x={Math.cos(a) * 82} y={Math.sin(a) * 82} fontSize="11" textAnchor="middle" dominantBaseline="middle" fill="#4B5A78">
             {STAT_LABEL[k]}
           </text>
         );
@@ -249,7 +249,7 @@ export function VehicleSelect() {
           <div style={{ fontSize: 24 }}>
             {String(v.no).padStart(2, '0')}. {v.name}
           </div>
-          <div style={{ fontSize: 14, color: '#6e5f80' }}>{v.desc}</div>
+          <div style={{ fontSize: 14, color: '#4B5A78' }}>{v.desc}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Radar stats={st} base={v.stats} />
             <div style={{ flex: 1 }}>
@@ -258,17 +258,17 @@ export function VehicleSelect() {
                 return (
                   <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                     <span style={{ width: 52 }}>{STAT_LABEL[k]}</span>
-                    <div style={{ flex: 1, height: 10, background: '#f3e9fa', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ width: `${st[k] * 10}%`, height: '100%', background: d > 0 ? '#7bd389' : d < 0 ? '#ff8fa3' : '#ffb3d1', transition: 'width .4s, background .4s' }} />
+                    <div style={{ flex: 1, height: 10, background: '#E8EFF8', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ width: `${st[k] * 10}%`, height: '100%', background: d > 0 ? '#7bd389' : d < 0 ? '#ff8fa3' : '#BFDDFF', transition: 'width .4s, background .4s' }} />
                     </div>
-                    <b className="num" style={{ width: 34, color: d > 0 ? '#3cb36a' : d < 0 ? '#ff4d7e' : undefined }}>
+                    <b className="num" style={{ width: 34, color: d > 0 ? '#3cb36a' : d < 0 ? '#E8412C' : undefined }}>
                       {st[k]}
                       {d ? <small>{d > 0 ? `+${d}` : d}</small> : null}
                     </b>
                   </div>
                 );
               })}
-              <div style={{ fontSize: 12, color: '#9d7bc9' }}>
+              <div style={{ fontSize: 12, color: '#2F6FDB' }}>
                 기본 총합 {sum} · 최고 {displayTopKmh(st.speed)}km/h
               </div>
             </div>
@@ -277,7 +277,7 @@ export function VehicleSelect() {
             <b>⚡ 고유기: {v.skill.name}</b>
             <div style={{ fontSize: 14 }}>{v.skill.desc}</div>
           </div>
-          {msg && <div style={{ color: '#ff4d7e', marginTop: 6 }}>{msg}</div>}
+          {msg && <div style={{ color: '#E8412C', marginTop: 6 }}>{msg}</div>}
           <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
             {owned(sel) ? (
               <button

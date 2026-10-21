@@ -44,7 +44,7 @@ export function MainMenu() {
         <Logo width={250} />
         <div className="spacer" />
         <div className="tag" title={`${profile.xp} XP`}>
-          <span className="chip" style={{ padding: '1px 8px', boxShadow: 'none', background: '#8a63d2', color: '#fff', fontFamily: 'var(--head)' }}>
+          <span className="chip" style={{ padding: '1px 8px', boxShadow: 'none', background: '#2F6FDB', color: '#fff', fontFamily: 'var(--head)' }}>
             Lv.{profile.level}
           </span>
           <div className="meter" style={{ width: 80, height: 10 }}>
@@ -172,7 +172,7 @@ export function AttendanceModal() {
           const done = day < streakDay || (day === streakDay && profile.attendance.claimedToday);
           const todayCell = day === streakDay && !profile.attendance.claimedToday;
           return (
-            <div key={i} className="card" style={{ textAlign: 'center', padding: 8, borderColor: todayCell ? '#ff8fb8' : 'transparent', opacity: done ? 0.6 : 1 }}>
+            <div key={i} className="card" style={{ textAlign: 'center', padding: 8, borderColor: todayCell ? '#FF6B3D' : 'transparent', opacity: done ? 0.6 : 1 }}>
               <div>{day}일</div>
               <div style={{ fontSize: 28 }}>{r === -1 ? '🎁' : '🪙'}</div>
               <small>{r === -1 ? '레어 상자' : `${r}G`}</small>
@@ -181,7 +181,7 @@ export function AttendanceModal() {
           );
         })}
       </div>
-      <p style={{ color: '#9d7bc9' }}>하루라도 빠지면 1일차부터 다시 시작해요!</p>
+      <p style={{ color: '#2F6FDB' }}>하루라도 빠지면 1일차부터 다시 시작해요!</p>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <button
           className="btn gold"
@@ -214,7 +214,7 @@ export function RouletteModal() {
   const [msg, setMsg] = useState('');
   const [spinning, setSpinning] = useState(false);
   const n = ROULETTE.length;
-  const cols = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB', '#FFC8DD'];
+  const cols = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#C9D8EE', '#CFE6FF'];
   return (
     <Modal onClose={() => !spinning && set({ modal: null })}>
       <h2 style={{ marginTop: 0, textAlign: 'center' }}>🎡 무료 럭키 룰렛 (1일 1회)</h2>
@@ -227,13 +227,13 @@ export function RouletteModal() {
             return (
               <g key={i}>
                 <path d={`M0 0 L${Math.cos(a0) * 95} ${Math.sin(a0) * 95} A95 95 0 0 1 ${Math.cos(a1) * 95} ${Math.sin(a1) * 95} Z`} fill={cols[i % cols.length]} stroke="#fff" strokeWidth="3" />
-                <text x={Math.cos(am) * 60} y={Math.sin(am) * 60} fontSize="11" textAnchor="middle" dominantBaseline="middle" fill="#4a3b52" transform={`rotate(${(am * 180) / Math.PI + 90} ${Math.cos(am) * 60} ${Math.sin(am) * 60})`}>
+                <text x={Math.cos(am) * 60} y={Math.sin(am) * 60} fontSize="11" textAnchor="middle" dominantBaseline="middle" fill="#1E2B4A" transform={`rotate(${(am * 180) / Math.PI + 90} ${Math.cos(am) * 60} ${Math.sin(am) * 60})`}>
                   {seg.label}
                 </text>
               </g>
             );
           })}
-          <circle r="14" fill="#fff" stroke="#ff8fb8" strokeWidth="4" />
+          <circle r="14" fill="#fff" stroke="#FF6B3D" strokeWidth="4" />
         </svg>
         <div style={{ position: 'absolute', left: '50%', top: -6, transform: 'translateX(-50%)', fontSize: 30 }}>🔻</div>
       </div>

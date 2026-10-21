@@ -155,7 +155,7 @@ export function cabOver(b: MeshBuilder, o: CabOverOpts) {
     sf: o.big ? 0.12 : 0.26,
     color: o.color,
     bPillars: o.crew ? [o.zf - o.len * 0.52] : [],
-    hatch: { z: o.hatchZ ?? o.zf - o.len * 0.45, l: 0.62 },
+    hatch: { z: o.hatchZ ?? o.zf - o.len * 0.62, l: 0.6 },
   });
   mirrors(b, o.zf - 0.12, o.yb + 0.25, o.w / 2, BLACK, true);
   doorLine(b, zr + 0.06, o.y0 + 0.05, o.yb, o.w / 2 + 0.002);

@@ -2,7 +2,7 @@
  * Hand-built SVG icon set (thick ink outline, flat pastel fills) used instead of emoji so the
  * menus read as one consistent game UI.
  */
-const INK = '#3d2c4e';
+const INK = '#1E2B4A';
 type P = { size?: number; color?: string };
 const S = ({ size = 28, children, vb = 32 }: { size?: number; children: React.ReactNode; vb?: number }) => (
   <svg width={size} height={size} viewBox={`0 0 ${vb} ${vb}`} fill="none" stroke={INK} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', flex: 'none' }}>
@@ -54,7 +54,7 @@ export const Icon = {
       <path d="M11 19l3 3 6-6" />
     </S>
   ),
-  wheel: ({ size, color = '#cdb4db' }: P) => (
+  wheel: ({ size, color = '#C9D8EE' }: P) => (
     <S size={size}>
       <circle cx="16" cy="16" r="11" fill={color} />
       <path d="M16 5v22M5 16h22M8.2 8.2l15.6 15.6M23.8 8.2L8.2 23.8" strokeWidth={1.8} />
@@ -67,7 +67,7 @@ export const Icon = {
       <circle cx="16" cy="16" r="4" fill="#fff" />
     </S>
   ),
-  user: ({ size, color = '#ffc8dd' }: P) => (
+  user: ({ size, color = '#CFE6FF' }: P) => (
     <S size={size}>
       <circle cx="16" cy="12" r="6" fill={color} />
       <path d="M6 27c1-6 5-8 10-8s9 2 10 8z" fill={color} />
@@ -76,7 +76,7 @@ export const Icon = {
   chart: ({ size, color = '#a2d2ff' }: P) => (
     <S size={size}>
       <rect x="5" y="16" width="5" height="10" rx="1.5" fill={color} />
-      <rect x="13.5" y="9" width="5" height="17" rx="1.5" fill="#ffc8dd" />
+      <rect x="13.5" y="9" width="5" height="17" rx="1.5" fill="#CFE6FF" />
       <rect x="22" y="12" width="5" height="14" rx="1.5" fill="#b9fbc0" />
     </S>
   ),

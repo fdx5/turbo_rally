@@ -4,7 +4,7 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true, args:
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message));
-await page.goto('http://localhost:5173/');
+await page.goto(process.env.BASE ?? 'http://localhost:5173/');
 await page.waitForTimeout(4000);
 await page.getByText('회원가입', { exact: true }).first().click();
 await page.waitForTimeout(500);

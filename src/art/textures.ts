@@ -10,7 +10,7 @@ export function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderin
 export function tex(c: HTMLCanvasElement, repeat = false, srgb = true): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
+  t.anisotropy = 16;
   if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.generateMipmaps = true;
   t.minFilter = THREE.LinearMipmapLinearFilter;
@@ -19,45 +19,65 @@ export function tex(c: HTMLCanvasElement, repeat = false, srgb = true): THREE.Ca
 
 /** Road surface: pastel asphalt with speckles, white edge lines and dashed centre. u = along, v = across. */
 export function roadTexture(o: { base: string; speck: string; line: string; edge: string; rainbow?: boolean }, seed = 1) {
-  const [c, g] = canvas(512, 512);
+  const S = 1024;
+  const [c, g] = canvas(S, S);
   const r = new Rng(seed);
   if (o.rainbow) {
-    const cols = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB', '#FFC8DD'];
-    const h = 512 / cols.length;
-    // across = y in texture (v)
+    const cols = ['#FF6B6B', '#FFA94D', '#FFD43B', '#69DB7C', '#4DABF7', '#9775FA', '#F783AC'];
+    const h = S / cols.length;
     cols.forEach((col, i) => {
       g.fillStyle = col;
-      g.fillRect(0, i * h, 512, h + 1);
+      g.fillRect(0, i * h, S, h + 1);
     });
-    g.globalAlpha = 0.25;
-    for (let i = 0; i < 600; i++) {
+    g.globalAlpha = 0.18;
+    for (let i = 0; i < 2400; i++) {
       g.fillStyle = '#FFFFFF';
-      g.beginPath();
-      g.arc(r.range(0, 512), r.range(0, 512), r.range(1, 3), 0, Math.PI * 2);
-      g.fill();
+      g.fillRect(r.range(0, S), r.range(0, S), r.range(1, 3), r.range(1, 3));
     }
     g.globalAlpha = 1;
   } else {
     g.fillStyle = o.base;
-    g.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 2600; i++) {
-      g.fillStyle = r.chance(0.5) ? o.speck : '#FFFFFF';
-      g.globalAlpha = r.range(0.08, 0.3);
-      g.fillRect(r.range(0, 512), r.range(0, 512), r.range(1, 4), r.range(1, 4));
+    g.fillRect(0, 0, S, S);
+    // fine asphalt grain (two scales)
+    for (let i = 0; i < 26000; i++) {
+      const light = r.chance(0.5);
+      g.fillStyle = light ? '#FFFFFF' : o.speck;
+      g.globalAlpha = light ? r.range(0.04, 0.12) : r.range(0.15, 0.4);
+      const sz = r.range(1, 2.6);
+      g.fillRect(r.range(0, S), r.range(0, S), sz, sz);
+    }
+    // subtle tyre wear bands along the racing lanes
+    g.globalAlpha = 0.07;
+    g.fillStyle = '#000000';
+    for (const v of [0.3, 0.42, 0.58, 0.7]) g.fillRect(0, v * S - 18, S, 36);
+    // tar crack seams
+    g.globalAlpha = 0.12;
+    g.strokeStyle = '#000000';
+    g.lineWidth = 1.5;
+    for (let i = 0; i < 10; i++) {
+      g.beginPath();
+      let x = r.range(0, S);
+      let y = r.range(0, S);
+      g.moveTo(x, y);
+      for (let k = 0; k < 6; k++) {
+        x += r.range(-30, 30);
+        y += r.range(-30, 30);
+        g.lineTo(x, y);
+      }
+      g.stroke();
     }
     g.globalAlpha = 1;
     // centre dashes (along x = u)
     g.fillStyle = o.line;
-    g.globalAlpha = 0.85;
-    for (let x = 0; x < 512; x += 128) roundRect(g, x + 16, 250, 72, 12, 6);
+    g.globalAlpha = 0.92;
+    for (let x = 0; x < S; x += 256) roundRect(g, x + 32, S / 2 - 11, 144, 22, 8);
     g.globalAlpha = 1;
   }
-  // edge lines
+  // crisp edge lines
   g.fillStyle = o.edge;
-  g.fillRect(0, 10, 512, 12);
-  g.fillRect(0, 490, 512, 12);
-  const t = tex(c, true);
-  return t;
+  g.fillRect(0, 18, S, 22);
+  g.fillRect(0, S - 40, S, 22);
+  return tex(c, true);
 }
 
 export function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, stroke = false) {
@@ -74,14 +94,14 @@ export function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: 
 
 /** Ground texture: soft noise blotches tinted by vertex colour. */
 export function groundTexture(seed = 3) {
-  const [c, g] = canvas(256, 256);
+  const [c, g] = canvas(512, 512);
   const r = new Rng(seed);
   g.fillStyle = '#FFFFFF';
-  g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 260; i++) {
-    const x = r.range(0, 256);
-    const y = r.range(0, 256);
-    const rad = r.range(4, 18);
+  g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 700; i++) {
+    const x = r.range(0, 512);
+    const y = r.range(0, 512);
+    const rad = r.range(4, 22);
     const grd = g.createRadialGradient(x, y, 0, x, y, rad);
     const v = r.chance(0.5) ? 255 : 228;
     grd.addColorStop(0, `rgba(${v},${v},${v},0.5)`);
@@ -90,9 +110,9 @@ export function groundTexture(seed = 3) {
     g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
   // tiny grass ticks / sparkles
-  for (let i = 0; i < 400; i++) {
-    g.fillStyle = `rgba(255,255,255,${r.range(0.15, 0.4)})`;
-    g.fillRect(r.range(0, 256), r.range(0, 256), 2, 2);
+  for (let i = 0; i < 2600; i++) {
+    g.fillStyle = r.chance(0.6) ? `rgba(255,255,255,${r.range(0.12, 0.3)})` : `rgba(90,110,80,${r.range(0.03, 0.07)})`;
+    g.fillRect(r.range(0, 512), r.range(0, 512), r.range(1, 3), r.range(2, 5));
   }
   return tex(c, true);
 }

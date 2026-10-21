@@ -3,15 +3,23 @@ import { useHud, minimapRef } from './hudStore';
 import { ALL_ITEMS } from '../data/items';
 import { portrait } from './portraits';
 import type { CharId } from '../data/characters';
-import { fmt } from '../race/race';
+import { fmt, mirrorRect } from '../race/race';
 import { MT_LEVELS } from '../physics/kart';
 import { useSettings } from '../core/settings';
 
-const POS_COL = ['#FFB400', '#9AA9C9', '#E0915A', '#FF6FA3', '#FF6FA3', '#A98BE0', '#A98BE0', '#A98BE0'];
+const POS_COL = ['#FFB400', '#9AA9C9', '#E0915A', '#FF5A36', '#FF5A36', '#2F6FDB', '#2F6FDB', '#2F6FDB'];
 
 export function Hud({ onPause }: { onPause: () => void }) {
   const h = useHud();
   const showFps = useSettings((s) => s.showFps);
+  const mirror = useSettings((s) => s.rearMirror) && (h.phase === 'race' || h.phase === 'countdown');
+  const mr = mirrorRect();
+  const [, force] = useState(0);
+  useEffect(() => {
+    const f = () => force((n) => n + 1);
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const [bump, setBump] = useState(false);
   const lastPos = useRef(h.position);
@@ -85,8 +93,13 @@ export function Hud({ onPause }: { onPause: () => void }) {
         <div className="hud-time">{fmt(h.timeMs)}</div>
       </div>
       {h.lapFlash && <div className="lapflash">랩 {h.lapFlash}</div>}
+      {mirror && (
+        <div className="hud-mirror" style={{ left: mr.x - 6, top: mr.y - 6, width: mr.w + 12, height: mr.h + 12 }}>
+          <span>후방</span>
+        </div>
+      )}
       {h.mode !== 'timeattack' || h.items.length ? (
-        <div className="hud-items">
+        <div className="hud-items" style={mirror ? { top: mr.y + mr.h + 18 } : undefined}>
           <div className={`slot small`}>{next ? <span>{next.icon}</span> : null}</div>
           <div className={`slot ${h.rouletteIcon ? 'spin' : ''} ${got ? 'got' : ''}`}>
             {h.rouletteIcon ? <span>{h.rouletteIcon}</span> : main ? <span>{main.icon}</span> : null}
@@ -102,7 +115,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
         <div className={`hud-skill ${h.skillReady ? 'ready' : ''}`}>
           <svg viewBox="0 0 92 92">
             <circle cx="46" cy="46" r="40" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="9" />
-            <circle cx="46" cy="46" r="40" fill="none" stroke={h.skillReady ? '#FFCF4A' : '#FF8FB8'} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${C * g} ${C}`} transform="rotate(-90 46 46)" />
+            <circle cx="46" cy="46" r="40" fill="none" stroke={h.skillReady ? '#FFCF4A' : '#FF6B3D'} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${C * g} ${C}`} transform="rotate(-90 46 46)" />
           </svg>
           <div className="ic">{h.skillIcon}</div>
           <div className="key">Q</div>
@@ -139,7 +152,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
           </div>
         ))}
       </div>
-      <button className="btn icon ghost tap pausebtn" onClick={onPause} aria-label="일시정지">
+      <button className="btn icon ghost tap pausebtn" style={mirror ? { right: 'auto', left: mr.x - 70, top: mr.y } : undefined} onClick={onPause} aria-label="일시정지">
         ⏸
       </button>
       {showFps && (

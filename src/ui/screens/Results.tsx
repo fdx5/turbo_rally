@@ -64,14 +64,14 @@ export function Results() {
       <div style={{ flex: 1, display: 'flex', gap: 14, minHeight: 0, marginTop: 10 }}>
         <div className="panel scroll" style={{ width: 'min(400px, 42vw)', padding: 12 }}>
           {sorted.map((e) => (
-            <div key={e.slot} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 12, background: e.isPlayer ? '#fff0f7' : undefined, fontSize: 16 }}>
-              <b className="num" style={{ width: 22, fontSize: 20, color: e.position === 1 ? '#f0a400' : e.position === 2 ? '#8a98b8' : e.position === 3 ? '#d0784a' : '#9d7bc9' }}>
+            <div key={e.slot} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 12, background: e.isPlayer ? '#EEF6FF' : undefined, fontSize: 16 }}>
+              <b className="num" style={{ width: 22, fontSize: 20, color: e.position === 1 ? '#f0a400' : e.position === 2 ? '#8a98b8' : e.position === 3 ? '#d0784a' : '#2F6FDB' }}>
                 {e.position}
               </b>
               <img src={portrait(e.charId as CharId, {}, 64)} style={{ width: 34, height: 34 }} alt="" />
               <div style={{ flex: 1, lineHeight: 1.1 }}>
                 {e.isPlayer ? profile.nickname || CHAR_BY_ID[e.charId as CharId].name : CHAR_BY_ID[e.charId as CharId].name}
-                <div style={{ fontSize: 11, color: '#9d7bc9' }}>{VEHICLE_BY_ID[e.vehicleId]?.name}</div>
+                <div style={{ fontSize: 11, color: '#2F6FDB' }}>{VEHICLE_BY_ID[e.vehicleId]?.name}</div>
               </div>
               <span className="num" style={{ fontSize: 14 }}>
                 {fmtMs(e.totalMs)}
@@ -87,14 +87,14 @@ export function Results() {
         <div className="spacer" />
         <div className="panel" style={{ width: 'min(400px, 44vw)', padding: 14, alignSelf: 'flex-start' }}>
           <div style={{ fontSize: 20, marginBottom: 6 }}>💰 보상</div>
-          {!out && <div style={{ color: '#ff4d7e' }}>기록 검증에 실패해 보상이 지급되지 않았어요.</div>}
+          {!out && <div style={{ color: '#E8412C' }}>기록 검증에 실패해 보상이 지급되지 않았어요.</div>}
           {lines.slice(0, shown).map((l) => (
             <div key={l.key} className="pop-in" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 17 }}>
               <span>{l.label}</span>
               <b className="num" style={{ color: '#f0a400' }}>+{l.gold.toLocaleString()}</b>
             </div>
           ))}
-          <div style={{ borderTop: '2px dashed #eadcf5', marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 22 }}>
+          <div style={{ borderTop: '2px dashed #D5E2F2', marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'space-between', fontSize: 22 }}>
             <span>합계</span>
             <b className="num" style={{ color: '#f0a400' }}>🪙 {goldShown.toLocaleString()}</b>
           </div>
@@ -102,11 +102,11 @@ export function Results() {
             <div className="pop-in" style={{ marginTop: 8, fontSize: 15, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div>✨ 경험치 +{out.xpGain}</div>
               {out.levelUps.map((l) => (
-                <div key={l} style={{ color: '#9d7bc9' }}>🎉 레벨 {l} 달성!</div>
+                <div key={l} style={{ color: '#2F6FDB' }}>🎉 레벨 {l} 달성!</div>
               ))}
               {out.starsAfter > out.starsBefore && <div>⭐ 별 +{out.starsAfter - out.starsBefore} (총 {out.starsAfter}개)</div>}
               {out.newTracks.map((id) => (
-                <div key={id} style={{ color: '#ff6fa3', fontSize: 18 }}>
+                <div key={id} style={{ color: '#FF5A36', fontSize: 18 }}>
                   🔓 짜잔! 트랙 「{TRACK_BY_ID[id].name}」 오픈!
                 </div>
               ))}
@@ -121,7 +121,7 @@ export function Results() {
             </div>
           )}
           {nextLocked && nextLocked.no >= 2 && (
-            <div style={{ marginTop: 8, fontSize: 14, color: '#6e5f80' }}>
+            <div style={{ marginTop: 8, fontSize: 14, color: '#4B5A78' }}>
               🎯 트랙 {nextLocked.no}까지: 트랙 {nextLocked.no - 1}에서 3등 1번 남았어요!
             </div>
           )}

@@ -45,24 +45,24 @@ export class Showroom {
 
   constructor(private R: Renderer) {
     const th = THEMES.candy;
-    this.sky = buildSky({ ...th, sky: { ...th.sky, top: '#FF9CC7', horizon: '#FFDDEB', bottom: '#FFE9F2' } });
+    this.sky = buildSky({ ...th, sky: { ...th.sky, top: '#3E95E6', horizon: '#D9EEFF', bottom: '#EAF4E2' } });
     this.scene.add(this.sky);
-    this.scene.fog = new THREE.Fog('#FFE6F0', 60, 400);
-    const L = makeLights('#FFF1E4', 1.85, '#FFD3E6', '#FFE8CC', 1.0, 0.2, R.def.shadow || 1024);
+    this.scene.fog = new THREE.Fog('#D9EEFF', 80, 500);
+    const L = makeLights('#FFF4E4', 1.9, '#D6E9FF', '#E4EFD0', 1.0, 0.2, R.def.shadow || 1024);
     L.sun.position.set(8, 14, 10);
     L.sun.shadow.camera.left = L.sun.shadow.camera.bottom = -14;
     L.sun.shadow.camera.right = L.sun.shadow.camera.top = 14;
     this.scene.add(L.group);
     // floor: big soft disc + candy stage
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(300, 64).rotateX(-Math.PI / 2), toon({ color: '#FFCFE2' }));
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(300, 64).rotateX(-Math.PI / 2), toon({ color: '#9FD683' }));
     floor.receiveShadow = true;
     this.scene.add(floor);
     const b = new MeshBuilder();
-    b.cyl(5.2, 5.6, 0.6, '#FFF3F8', { p: [0, 0.3, 0] }, 48);
-    b.cyl(4.6, 4.6, 0.12, '#FFC8DD', { p: [0, 0.66, 0] }, 48);
+    b.cyl(5.2, 5.6, 0.6, '#F4F6FA', { p: [0, 0.3, 0] }, 48);
+    b.cyl(4.6, 4.6, 0.12, '#3E7BE0', { p: [0, 0.66, 0] }, 48);
     for (let i = 0; i < 24; i++) {
       const a = (i / 24) * Math.PI * 2;
-      b.sphere(0.22, ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'][i % 6], { p: [Math.cos(a) * 5.35, 0.62, Math.sin(a) * 5.35], glow: 1.4 });
+      b.sphere(0.22, ['#FF5A36', '#FFC93C', '#27C26C', '#2F80ED'][i % 4], { p: [Math.cos(a) * 5.35, 0.62, Math.sin(a) * 5.35], glow: 1.4 });
     }
     this.stage.add(b.build());
     const deco = new MeshBuilder();
@@ -72,8 +72,8 @@ export class Showroom {
       const a = (i / 9) * Math.PI * 2 + 0.3;
       const r = 13 + (i % 3) * 4;
       deco.cyl(0.12, 0.12, 4 + (i % 3), '#FFFFFF', { p: [Math.cos(a) * r, 2 + (i % 3) * 0.5, Math.sin(a) * r - 6] });
-      deco.add(star, ['#FFE066', '#FFC8DD', '#A2D2FF'][i % 3], { p: [Math.cos(a) * r, 4.5 + (i % 3), Math.sin(a) * r - 6], s: 1.1 });
-      deco.sphere(1.2, ['#FFC8DD', '#B9FBC0', '#CDB4DB', '#A2D2FF'][i % 4], { p: [Math.cos(a + 0.35) * (r + 3), 1, Math.sin(a + 0.35) * (r + 3) - 6], s: [1, 1.2, 1] });
+      deco.add(star, ['#FFC93C', '#FF8A3D', '#4DABF7'][i % 3], { p: [Math.cos(a) * r, 4.5 + (i % 3), Math.sin(a) * r - 6], s: 1.1 });
+      deco.sphere(1.2, ['#7CC96B', '#5DB65A', '#8FD06A', '#69B95F'][i % 4], { p: [Math.cos(a + 0.35) * (r + 3), 1, Math.sin(a + 0.35) * (r + 3) - 6], s: [1, 1.2, 1] });
     }
     this.stage.add(deco.build());
     this.scene.add(this.stage, this.turntable, this.podiumGroup);
@@ -129,7 +129,7 @@ export class Showroom {
     CHARACTERS.forEach((c, i) => {
       const m = new CharacterModel(c.id, {}, 'showcase');
       const a = ((i - 3.5) / 7) * 2.2;
-      m.root.position.set(Math.sin(a) * 5.4, 0.72, Math.cos(a) * 5.4 - 5.4 + 1.2);
+      m.root.position.set(Math.sin(a) * 5.4, 0.72 + m.standHeight, Math.cos(a) * 5.4 - 5.4 + 1.2);
       m.root.rotation.y = -a * 0.6;
       this.scene.add(m.root);
       this.lineup.push(m);
@@ -143,6 +143,7 @@ export class Showroom {
       if (m.root.userData.lo === want) return;
       const nm = new CharacterModel(id, eq[id] ?? {}, 'showcase');
       nm.root.position.copy(m.root.position);
+      nm.root.position.y = 0.72 + nm.standHeight;
       nm.root.rotation.copy(m.root.rotation);
       nm.root.userData.lo = want;
       nm.root.visible = m.root.visible;
@@ -180,6 +181,7 @@ export class Showroom {
     if (this.shopChar) this.turntable.remove(this.shopChar.root);
     this.shopChar = new CharacterModel(charId, loadout, 'showcase');
     this.shopChar.root.rotation.y = rot;
+    this.shopChar.root.position.y = this.shopChar.standHeight;
     this.shopChar.root.visible = this.mode === 'shop';
     this.turntable.add(this.shopChar.root);
   }

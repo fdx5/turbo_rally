@@ -318,6 +318,12 @@ export class CharacterModel {
   setOutlines(v: boolean) {
     for (const o of this.outlines) o.visible = v;
   }
+  /** Height from the soles to the hips when standing (to place a standing character on a floor). */
+  get standHeight() {
+    const B = this.def.body;
+    const legR = 0.1 + B.torsoR * 0.08;
+    return B.legLen + legR * 1.2;
+  }
   get root() {
     return this.p.root;
   }

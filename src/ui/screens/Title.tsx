@@ -12,7 +12,7 @@ import { I } from '../icons';
 export function Loading() {
   const { loadingMsg, loadingPct } = useApp();
   return (
-    <div className="screen" style={{ alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(135deg,#ffd1e6 0 40px,#ffc4dd 40px 80px)' }}>
+    <div className="screen" style={{ alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(135deg,#D6EAFF 0 40px,#C9E3FF 40px 80px)' }}>
       <div style={{ animation: 'bob 2s ease-in-out infinite' }}>
         <Logo width={Math.min(420, window.innerWidth * 0.6)} />
       </div>

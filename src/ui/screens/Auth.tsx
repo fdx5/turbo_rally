@@ -47,8 +47,8 @@ export function AuthModal({ kind }: { kind: 'login' | 'signup' }) {
   return (
     <Modal onClose={() => set({ modal: null })}>
       <h2 style={{ margin: '0 0 6px', fontSize: 30 }}>{kind === 'login' ? '로그인 🔑' : '회원가입 🎀'}</h2>
-      {kind === 'signup' && <p style={{ margin: '0 0 12px', color: '#9d7bc9' }}>가입하면 5,000G + 한정 「웰컴 리본 모자」를 드려요!</p>}
-      {!server && <p style={{ color: '#ff6b8a' }}>지금은 서버에 연결할 수 없어요 (오프라인 모드).</p>}
+      {kind === 'signup' && <p style={{ margin: '0 0 12px', color: '#2F6FDB' }}>가입하면 5,000G + 한정 「웰컴 리본 모자」를 드려요!</p>}
+      {!server && <p style={{ color: '#FF5A36' }}>지금은 서버에 연결할 수 없어요 (오프라인 모드).</p>}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -69,7 +69,7 @@ export function AuthModal({ kind }: { kind: 'login' | 'signup' }) {
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> 로그인 유지 (30일)
           </label>
         )}
-        {err && <div style={{ color: '#ff4d7e' }}>{err}</div>}
+        {err && <div style={{ color: '#E8412C' }}>{err}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
           <button className="btn" type="submit" disabled={busy}>
             {busy ? '잠시만요…' : kind === 'login' ? '로그인' : '가입하기'}
@@ -117,7 +117,7 @@ export function PromoModal({ gate }: { gate?: boolean }) {
             </button>
           )}
         </div>
-        {gate && <p style={{ fontSize: 14, color: '#9d7bc9' }}>타임어택·연습 주행은 게스트도 계속 즐길 수 있어요 (타임어택 하루 3회)</p>}
+        {gate && <p style={{ fontSize: 14, color: '#2F6FDB' }}>타임어택·연습 주행은 게스트도 계속 즐길 수 있어요 (타임어택 하루 3회)</p>}
       </div>
     </Modal>
   );

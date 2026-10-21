@@ -48,9 +48,9 @@ export function LevelBar() {
   const need = xpToNext(level);
   return (
     <div className="chip" title={`${xp}/${need} XP`}>
-      <b style={{ color: '#9d7bc9' }}>Lv.{level}</b>
-      <div style={{ width: 90, height: 10, background: '#f1e6f8', borderRadius: 6, overflow: 'hidden' }}>
-        <div style={{ width: `${(xp / need) * 100}%`, height: '100%', background: 'linear-gradient(90deg,#ffb3d1,#a98be0)' }} />
+      <b style={{ color: '#2F6FDB' }}>Lv.{level}</b>
+      <div style={{ width: 90, height: 10, background: '#E3ECF7', borderRadius: 6, overflow: 'hidden' }}>
+        <div style={{ width: `${(xp / need) * 100}%`, height: '100%', background: 'linear-gradient(90deg,#BFDDFF,#2F6FDB)' }} />
       </div>
     </div>
   );

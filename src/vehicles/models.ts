@@ -152,7 +152,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
     b.box(1.9, 0.12, 0.16, DARKGREY, { p: [0, 0.44, -1.74] }, 0.4, 1);
     arches(b, 1.15, 0.44, 0.9, 0.44, '#C9CED9');
     wheels4(v, 1.15, -1.15, 0.44, 0.88, 0.38, '#E6E9F0');
-    v.seat = [0, 1.4, 1.15];
+    v.seat = [0, 1.4, 0.97];
     v.decals.push({ region: 'side', p: [0.976, 1.2, -0.63], face: 'L', w: 1.9, h: 1.0 }, { region: 'side', p: [-0.976, 1.2, -0.63], face: 'R', w: 1.9, h: 1.0 });
     v.decals.push({ region: 'rear', p: [0, 1.22, -1.712], face: 'B', w: 1.6, h: 0.9 });
     v.draw.side = (g, w, h) => {
@@ -181,7 +181,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
     rearLights(b, -1.72, 0.52, 0.66);
     arches(b, 1.15, 0.44, 0.9, 0.44, '#C9CED9');
     wheels4(v, 1.15, -1.15, 0.44, 0.88, 0.38, '#E6E9F0');
-    v.seat = [0, 1.4, 1.15];
+    v.seat = [0, 1.4, 0.97];
     v.decals.push({ region: 'side', p: [0.986, 1.35, -0.63], face: 'L', w: 1.9, h: 0.7 }, { region: 'side', p: [-0.986, 1.35, -0.63], face: 'R', w: 1.9, h: 0.7 });
     v.decals.push({ region: 'rear', p: [0, 1.3, -1.712], face: 'B', w: 1.5, h: 0.75 });
     v.decals.push({ region: 'front', p: [0, 1.0, 1.65], face: 'F', w: 1.1, h: 0.22 });
@@ -223,7 +223,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
     rearLights(b, -1.72, 0.5, 0.66);
     arches(b, 1.15, 0.44, 0.9, 0.44, '#3E4258');
     wheels4(v, 1.15, -1.15, 0.44, 0.88, 0.38, '#E6E9F0');
-    v.seat = [0, 1.4, 1.15];
+    v.seat = [0, 1.4, 0.97];
     v.decals.push({ region: 'front', p: [0, 0.75, 1.68], face: 'F', w: 0.6, h: 0.15 });
     v.decals.push({ region: 'side', p: [0.925, 0.8, 1.0], face: 'L', w: 0.72, h: 0.18 }, { region: 'side', p: [-0.925, 0.8, 1.0], face: 'R', w: 0.72, h: 0.18 });
     v.decals.push({ region: 'rear', p: [0, 0.87, -1.71], face: 'B', w: 1.2, h: 0.3 });
@@ -253,7 +253,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
     rearLights(b, -1.72, 0.52, 0.66);
     arches(b, 1.15, 0.44, 0.9, 0.44, '#C9CED9');
     wheels4(v, 1.15, -1.15, 0.44, 0.88, 0.38, '#E6E9F0');
-    v.seat = [0, 1.4, 1.15];
+    v.seat = [0, 1.4, 0.97];
     v.decals.push({ region: 'roof', p: [0, 1.95, -0.54], face: 'F', w: 1.4, h: 0.35 });
     v.decals.push({ region: 'roof', p: [0, 1.95, -0.66], face: 'B', w: 1.4, h: 0.35 });
     v.decals.push({ region: 'side', p: [-0.976, 1.15, -0.63], face: 'R', w: 1.9, h: 0.7 });
@@ -290,7 +290,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
     rearLights(b, -2.0, 0.6, 0.7);
     arches(b, 1.3, 0.47, 0.92, 0.47, '#C9CED9');
     wheels4(v, 1.3, -1.15, 0.47, 0.9, 0.42, '#E6E9F0');
-    v.seat = [0, 1.52, 1.35];
+    v.seat = [0, 1.52, 1.17];
     v.decals.push({ region: 'side', p: [1.0, 1.25, -0.38], face: 'L', w: 1.8, h: 0.75 }, { region: 'side', p: [-1.0, 1.25, -0.38], face: 'R', w: 1.8, h: 0.75 });
     v.draw.side = (g, w, h) => {
       recycleMark(g, w * 0.15, h * 0.5, h * 0.3);
@@ -321,7 +321,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
       v.wheels.push({ x: s * 1.0, z: -0.75, r: 0.55, w: 0.48, front: false, hub: '#5E5873' });
       v.wheels.push({ x: s * 1.0, z: -1.6, r: 0.55, w: 0.48, front: false, hub: '#5E5873' });
     }
-    v.seat = [0, 1.7, 1.5];
+    v.seat = [0, 1.7, 1.33];
     v.decals.push({ region: 'side', p: [1.02, 1.6, -1.2], face: 'L', w: 1.4, h: 0.35 }, { region: 'side', p: [-1.02, 1.6, -1.2], face: 'R', w: 1.4, h: 0.35 });
     v.draw.side = (g, w, h) => text(g, '뚝딱건설', w * 0.5, h * 0.52, h * 0.7, '#5E5873', { font: FONTS.F_BLOCK, weight: 400 });
     v.height = 2.4;
@@ -354,7 +354,7 @@ const BUILDERS: Record<string, () => VehicleBlueprint> = {
       v.wheels.push({ x: s * 1.0, z: -0.75, r: 0.5, w: 0.45, front: false, hub: '#E6E9F0' });
       v.wheels.push({ x: s * 1.0, z: -1.55, r: 0.5, w: 0.45, front: false, hub: '#E6E9F0' });
     }
-    v.seat = [0, 1.7, 1.5];
+    v.seat = [0, 1.7, 1.33];
     v.decals.push({ region: 'side', p: [1.0, 0.95, 1.5], face: 'L', w: 0.95, h: 0.24 }, { region: 'side', p: [-1.0, 0.95, 1.5], face: 'R', w: 0.95, h: 0.24 });
     v.draw.side = (g, w, h) => text(g, '뚝딱 레미콘', w * 0.5, h * 0.5, h * 0.7, '#FFFFFF', { font: FONTS.F_BLOCK, weight: 400 });
     v.height = 2.6;

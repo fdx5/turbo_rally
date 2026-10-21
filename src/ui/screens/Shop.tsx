@@ -27,7 +27,7 @@ function CosThumb({ c, char }: { c: CosmeticDef; char: CharId }) {
     };
   }, [c.id, char]);
   return (
-    <div style={{ width: 92, height: 92, margin: '0 auto', borderRadius: 14, background: 'repeating-linear-gradient(135deg,#fff 0 10px,#fff4f8 10px 20px)', display: 'grid', placeItems: 'center' }}>
+    <div style={{ width: 92, height: 92, margin: '0 auto', borderRadius: 14, background: 'repeating-linear-gradient(135deg,#fff 0 10px,#F4F9FF 10px 20px)', display: 'grid', placeItems: 'center' }}>
       {url ? <img src={url} style={{ width: 92, height: 92 }} alt="" /> : <div className="meter" style={{ width: 40, height: 8 }}><i style={{ width: '60%' }} /></div>}
     </div>
   );
@@ -41,7 +41,7 @@ function TierFrame({ tier, children }: { tier: CosmeticDef['tier']; children: Re
       style={{
         borderRadius: 18,
         padding: 3,
-        background: rainbow ? 'linear-gradient(90deg,#ffadad,#ffd6a5,#fdffb6,#b9fbc0,#a2d2ff,#cdb4db,#ffadad)' : col,
+        background: rainbow ? 'linear-gradient(90deg,#ffadad,#ffd6a5,#fdffb6,#b9fbc0,#a2d2ff,#C9D8EE,#ffadad)' : col,
         backgroundSize: rainbow ? '200% 100%' : undefined,
         animation: rainbow ? 'shine 3s linear infinite' : undefined,
         boxShadow: tier === 'legendary' || rainbow ? `0 0 14px ${rainbow ? '#e0b3ff' : '#ffd666'}` : undefined,
@@ -113,7 +113,7 @@ export function Shop() {
     return (
       <div style={{ fontSize: 13 }}>
         {disc && <s style={{ color: '#aaa', marginRight: 4 }}>{base.toLocaleString()}</s>}
-        <b style={{ color: disc ? '#ff4d7e' : '#f0a400' }}>🪙{p.toLocaleString()}</b>
+        <b style={{ color: disc ? '#E8412C' : '#f0a400' }}>🪙{p.toLocaleString()}</b>
       </div>
     );
   };
@@ -148,7 +148,7 @@ export function Shop() {
                   sfx.click();
                   setChar(c.id);
                 }}
-                style={{ width: 44, height: 44, borderRadius: 22, border: `3px solid ${char === c.id ? '#ff8fb8' : '#fff'}`, background: '#fff', cursor: 'pointer' }}
+                style={{ width: 44, height: 44, borderRadius: 22, border: `3px solid ${char === c.id ? '#FF6B3D' : '#fff'}`, background: '#fff', cursor: 'pointer' }}
                 alt={c.name}
               />
             ))}
@@ -179,11 +179,11 @@ export function Shop() {
                   return (
                     <TierFrame key={c.id} tier={c.tier}>
                       <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => tryOn(c)}>
-                        <div style={{ fontSize: 11, color: TIER_INFO[c.tier].color === 'rainbow' ? '#b06ad9' : TIER_INFO[c.tier].color }}>{TIER_INFO[c.tier].name}</div>
+                        <div style={{ fontSize: 11, color: TIER_INFO[c.tier].color === 'rainbow' ? '#2F6FDB' : TIER_INFO[c.tier].color }}>{TIER_INFO[c.tier].name}</div>
                         <CosThumb c={c} char={char} />
                         <div style={{ fontSize: 13, minHeight: 34, lineHeight: 1.2 }}>{c.name}</div>
                         {own ? <div style={{ fontSize: 13, color: '#3cb36a' }}>{worn ? '착용 중 ✔' : '보유 ✔'}</div> : priceTag(c.id, c.price)}
-                        {trial[c.category] === c.id && <div style={{ fontSize: 11, color: '#ff6fa3' }}>시착 중</div>}
+                        {trial[c.category] === c.id && <div style={{ fontSize: 11, color: '#FF5A36' }}>시착 중</div>}
                       </div>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginTop: 4 }}>
                         {own ? (
@@ -215,7 +215,7 @@ export function Shop() {
                         )}
                       </div>
                       {!own && gap(priceOf(profile, c.id) ?? c.price) > 0 && (
-                        <div style={{ height: 5, background: '#f1e6f8', borderRadius: 3, marginTop: 4, overflow: 'hidden' }}>
+                        <div style={{ height: 5, background: '#E3ECF7', borderRadius: 3, marginTop: 4, overflow: 'hidden' }}>
                           <div style={{ width: `${Math.min(100, (profile.gold / (priceOf(profile, c.id) ?? c.price)) * 100)}%`, height: '100%', background: '#ffd166' }} />
                         </div>
                       )}
@@ -230,7 +230,7 @@ export function Shop() {
               <div className="chip" style={{ marginBottom: 8 }}>
                 장착 슬롯: {[0, 1, 2].map((i) => <span key={i} style={{ margin: '0 4px' }}>{i + 1}. {profile.weaponLoadout[i] ? WEAPONS.find((w) => w.id === profile.weaponLoadout[i])?.icon : '➖'}</span>)}
               </div>
-              <div style={{ fontSize: 13, color: '#6e5f80', marginBottom: 8 }}>장착한 무기(최대 3개)는 아이템 박스 룰렛에 추가돼요. 비쌀수록 화려하고 특이하지만 등장 순위가 제한돼요!</div>
+              <div style={{ fontSize: 13, color: '#4B5A78', marginBottom: 8 }}>장착한 무기(최대 3개)는 아이템 박스 룰렛에 추가돼요. 비쌀수록 화려하고 특이하지만 등장 순위가 제한돼요!</div>
               <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
                 {WEAPONS.map((w) => {
                   const own = owned(w.id);
@@ -243,7 +243,7 @@ export function Shop() {
                           <div style={{ fontSize: 15 }}>
                             {w.no}. {w.name}
                           </div>
-                          <div style={{ fontSize: 12, color: '#9d7bc9' }}>
+                          <div style={{ fontSize: 12, color: '#2F6FDB' }}>
                             {w.type} · 등장 {w.allowedRanks[0]}~{w.allowedRanks[1]}위 · {'★'.repeat(w.power)}
                           </div>
                         </div>
@@ -306,7 +306,7 @@ export function Shop() {
                         🪙{price.toLocaleString()}
                       </button>
                     ) : (
-                      <div style={{ fontSize: 12, color: '#9d7bc9' }}>{v.unlock.kind === 'level' ? `레벨 ${v.unlock.level} 해금` : v.unlock.kind === 'stars' ? `별 ${v.unlock.stars}개 해금` : ''}</div>
+                      <div style={{ fontSize: 12, color: '#2F6FDB' }}>{v.unlock.kind === 'level' ? `레벨 ${v.unlock.level} 해금` : v.unlock.kind === 'stars' ? `별 ${v.unlock.stars}개 해금` : ''}</div>
                     )}
                   </div>
                 );
@@ -347,7 +347,7 @@ export function Shop() {
               </div>
             </>
           )}
-          {msg && <div style={{ color: '#ff4d7e', marginTop: 8 }}>{msg}</div>}
+          {msg && <div style={{ color: '#E8412C', marginTop: 8 }}>{msg}</div>}
         </div>
       </div>
       {confirm && (
@@ -358,9 +358,9 @@ export function Shop() {
           </p>
           {profile.gold < confirm.price ? (
             <>
-              <p style={{ color: '#ff4d7e' }}>{(confirm.price - profile.gold).toLocaleString()}골드 더 모으면 살 수 있어요!</p>
-              <div style={{ height: 12, background: '#f1e6f8', borderRadius: 6, overflow: 'hidden' }}>
-                <div style={{ width: `${(profile.gold / confirm.price) * 100}%`, height: '100%', background: 'linear-gradient(90deg,#ffd166,#ff8fb8)' }} />
+              <p style={{ color: '#E8412C' }}>{(confirm.price - profile.gold).toLocaleString()}골드 더 모으면 살 수 있어요!</p>
+              <div style={{ height: 12, background: '#E3ECF7', borderRadius: 6, overflow: 'hidden' }}>
+                <div style={{ width: `${(profile.gold / confirm.price) * 100}%`, height: '100%', background: 'linear-gradient(90deg,#ffd166,#FF6B3D)' }} />
               </div>
               <button className="btn ghost" style={{ marginTop: 12 }} onClick={() => setConfirm(null)}>
                 확인
@@ -439,7 +439,7 @@ function WeaponPreview({ w }: { w: WeaponDef }) {
             ? 'shieldPrev'
             : 'shootPrev';
   return (
-    <div style={{ position: 'relative', height: 90, background: 'linear-gradient(#e9f4ff,#fff0f7)', borderRadius: 16, overflow: 'hidden', margin: '8px 0' }}>
+    <div style={{ position: 'relative', height: 90, background: 'linear-gradient(#e9f4ff,#EEF6FF)', borderRadius: 16, overflow: 'hidden', margin: '8px 0' }}>
       <style>{`
         @keyframes shootPrev { 0%{left:18%;opacity:1} 80%{left:78%;opacity:1} 100%{left:82%;opacity:0} }
         @keyframes homingPrev { 0%{left:18%;top:50%} 50%{left:50%;top:20%} 100%{left:80%;top:50%} }
