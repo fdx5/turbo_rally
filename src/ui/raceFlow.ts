@@ -23,8 +23,22 @@ export function unb64(s: string) {
   return new Float32Array(u.buffer);
 }
 
+// everything except PCs: phones/tablets (incl. iPadOS, which reports a Mac UA)
+const isMobile =
+  typeof window !== 'undefined' &&
+  (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1) || (matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0));
+/** Mobile only: go fullscreen + landscape on race start (must run inside the tap's user gesture). */
+function mobileFullscreen() {
+  if (!isMobile || document.fullscreenElement || matchMedia('(display-mode: standalone)').matches) return;
+  document.documentElement
+    .requestFullscreen?.({ navigationUI: 'hide' })
+    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape'))
+    .catch(() => {});
+}
+
 /** Validates guest gates (§11.2), prepares the 8-kart field, and runs a race session. */
 export async function startRaceFlow(trackId: string, mode: 'race' | 'timeattack' | 'practice', difficulty: Difficulty, ghostOverride?: Float32Array | null) {
+  mobileFullscreen();
   const app = useApp.getState();
   const ps = useProfile.getState();
   const p = ps.profile;
