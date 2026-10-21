@@ -94,4 +94,12 @@ const server = createServer(async (req, res) => {
     res.end();
   }
 });
+// If the host skipped the build step (e.g. Build Command = "npm install"), build the client now.
+if (!existsSync(join(DIST, 'index.html'))) {
+  console.log('[turbo-rally] dist/ not found — building client (vite build)…');
+  const t0 = Date.now();
+  const { build } = await import('vite');
+  await build({ root: ROOT, configFile: join(ROOT, 'vite.config.ts'), logLevel: 'warn' });
+  console.log(`[turbo-rally] client built in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+}
 server.listen(PORT, () => console.log(`TURBO RALLY listening on :${PORT}`));

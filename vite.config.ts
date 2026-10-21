@@ -14,7 +14,7 @@ function apiDev(): Plugin {
       s.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith('/api/')) return next();
         const path = req.url.slice(5).split('?')[0].replace(/\/$/, '');
-        const file = resolve(__dirname, 'api', `${path}.ts`);
+        const file = resolve(import.meta.dirname, 'api', `${path}.ts`);
         if (path.startsWith('_') || !existsSync(file)) {
           res.statusCode = 404;
           res.setHeader('Content-Type', 'application/json');
@@ -72,10 +72,10 @@ export default defineConfig(({ mode }) => {
       target: 'es2022',
       rollupOptions: {
         input: {
-          main: resolve(__dirname, 'index.html'),
-          audioReview: resolve(__dirname, 'dev/audio-review.html'),
-          turntable: resolve(__dirname, 'dev/turntable.html'),
-          race: resolve(__dirname, 'dev/race.html'),
+          main: resolve(import.meta.dirname, 'index.html'),
+          audioReview: resolve(import.meta.dirname, 'dev/audio-review.html'),
+          turntable: resolve(import.meta.dirname, 'dev/turntable.html'),
+          race: resolve(import.meta.dirname, 'dev/race.html'),
         },
         output: {
           manualChunks: (id: string) => (id.includes('node_modules/three') || id.includes('postprocessing') ? 'three' : id.includes('node_modules/react') || id.includes('scheduler') ? 'react' : undefined),
