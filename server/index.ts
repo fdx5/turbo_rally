@@ -36,6 +36,8 @@ const MIME: Record<string, string> = {
 const COMPRESSIBLE = new Set(['.html', '.js', '.css', '.json', '.svg', '.webmanifest']);
 const handlers = new Map<string, (req: unknown, res: unknown) => Promise<void>>();
 const gzCache = new Map<string, Buffer>();
+let clientReady = existsSync(join(DIST, 'index.html'));
+const BUILDING_PAGE = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"><title>TURBO RALLY</title></head><body style="margin:0;height:100vh;display:grid;place-items:center;background:#ffe9f2;font-family:sans-serif;color:#3d2c4e"><div style="text-align:center"><h1>TURBO RALLY</h1><p>게임을 준비하고 있어요… 잠시 후 자동으로 열려요</p></div></body></html>`;
 
 async function apiHandler(path: string) {
   if (handlers.has(path)) return handlers.get(path)!;
@@ -57,6 +59,11 @@ const server = createServer(async (req, res) => {
         return res.end('{"error":"not found"}');
       }
       return await h(req, res);
+    }
+    // client still being built (first boot without a build step): friendly retry page, never a crash
+    if (!clientReady) {
+      res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '5', 'Cache-Control': 'no-store' });
+      return res.end(BUILDING_PAGE);
     }
     // static files with SPA fallback
     let rel = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
@@ -94,12 +101,17 @@ const server = createServer(async (req, res) => {
     res.end();
   }
 });
-// If the host skipped the build step (e.g. Build Command = "npm install"), build the client now.
-if (!existsSync(join(DIST, 'index.html'))) {
-  console.log('[turbo-rally] dist/ not found — building client (vite build)…');
-  const t0 = Date.now();
-  const { build } = await import('vite');
-  await build({ root: ROOT, configFile: join(ROOT, 'vite.config.ts'), logLevel: 'warn' });
-  console.log(`[turbo-rally] client built in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-}
+// Open the port first (Render health/port scan), then build the client in the background
+// if the host skipped the build step (e.g. Build Command = "npm install").
 server.listen(PORT, () => console.log(`TURBO RALLY listening on :${PORT}`));
+if (!clientReady) {
+  console.log('[turbo-rally] dist/ not found — building client in background (vite build)…');
+  const t0 = Date.now();
+  import('vite')
+    .then(({ build }) => build({ root: ROOT, configFile: join(ROOT, 'vite.config.ts'), logLevel: 'warn' }))
+    .then(() => {
+      clientReady = existsSync(join(DIST, 'index.html'));
+      console.log(`[turbo-rally] client built in ${((Date.now() - t0) / 1000).toFixed(1)}s (ready=${clientReady})`);
+    })
+    .catch((e) => console.error('[turbo-rally] client build failed', e));
+}
