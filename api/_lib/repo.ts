@@ -69,19 +69,59 @@ export async function loadProfile(userId: string, withRaces = 200): Promise<Prof
   return p;
 }
 
-export async function loadRaces(userId: string, limit: number, offset: number, filter: { track?: string; mode?: string } = {}): Promise<RaceRecord[]> {
+export interface RaceFilter {
+  track?: string;
+  mode?: string;
+  char?: string;
+  vehicle?: string;
+  since?: number;
+  sort?: string;
+}
+export type PublicRace = RaceRecord & { userId: string; nickname: string };
+const RACE_SORT: Record<string, string> = {
+  at: 'r.finished_at DESC',
+  position: 'r.position ASC, r.finished_at DESC',
+  totalMs: 'r.total_ms ASC, r.finished_at DESC',
+  gold: 'r.gold_earned DESC, r.finished_at DESC',
+};
+
+function raceWhere(userId: string | null, filter: RaceFilter) {
+  const where = ['r.valid = 1'];
+  const args: (string | number)[] = [];
+  const eq = (col: string, v: string | number | undefined) => {
+    if (v === undefined || v === '') return;
+    where.push(`${col} = ?`);
+    args.push(v);
+  };
+  eq('r.user_id', userId ?? undefined);
+  eq('r.track_id', filter.track);
+  eq('r.mode', filter.mode);
+  eq('r.character_id', filter.char);
+  eq('r.vehicle_id', filter.vehicle);
+  if (filter.since) {
+    where.push('r.finished_at > ?');
+    args.push(filter.since);
+  }
+  return { sql: where.join(' AND '), args };
+}
+
+/** Number of valid races matching the filter (userId null = every member). */
+export async function countRaces(userId: string | null, filter: RaceFilter = {}): Promise<number> {
   const c = await ready();
-  const where = ['user_id = ?'];
-  const args: (string | number)[] = [userId];
-  if (filter.track) {
-    where.push('track_id = ?');
-    args.push(filter.track);
-  }
-  if (filter.mode) {
-    where.push('mode = ?');
-    args.push(filter.mode);
-  }
-  const rs = await c.execute({ sql: `SELECT * FROM races WHERE ${where.join(' AND ')} AND valid = 1 ORDER BY finished_at DESC LIMIT ? OFFSET ?`, args: [...args, limit, offset] });
+  const w = raceWhere(userId, filter);
+  const r = await c.execute({ sql: `SELECT COUNT(*) n FROM races r WHERE ${w.sql}`, args: w.args });
+  return n(r.rows[0]?.n);
+}
+
+/** Valid races, newest first by default. userId null = races of every member (public records). */
+export async function loadRaces(userId: string | null, limit: number, offset: number, filter: RaceFilter = {}): Promise<PublicRace[]> {
+  const c = await ready();
+  const w = raceWhere(userId, filter);
+  const order = RACE_SORT[filter.sort ?? ''] ?? RACE_SORT.at;
+  const rs = await c.execute({
+    sql: `SELECT r.*, u.nickname FROM races r LEFT JOIN users u ON u.id = r.user_id WHERE ${w.sql} ORDER BY ${order} LIMIT ? OFFSET ?`,
+    args: [...w.args, limit, offset],
+  });
   if (!rs.rows.length) return [];
   const ids = rs.rows.map((r) => s(r.id));
   const ph = ids.map(() => '?').join(',');
@@ -107,6 +147,8 @@ export async function loadRaces(userId: string, limit: number, offset: number, f
   const It = group(its.rows);
   return rs.rows.map((r) => ({
     id: s(r.id),
+    userId: s(r.user_id),
+    nickname: s(r.nickname),
     mode: s(r.mode) as RaceRecord['mode'],
     trackId: s(r.track_id),
     difficulty: s(r.difficulty) as RaceRecord['difficulty'],

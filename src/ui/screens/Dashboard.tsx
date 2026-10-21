@@ -83,7 +83,7 @@ export function Dashboard() {
       </div>
       <div className="panel scroll" style={{ flex: 1, marginTop: 8, padding: 16 }}>
         {tab === 'overview' && <Overview />}
-        {tab === 'races' && <RaceTable races={profile.races} />}
+        {tab === 'races' && <RaceTable />}
         {tab === 'tracks' && <TrackTab />}
         {tab === 'ranking' && <Ranking />}
         {tab === 'combos' && <Combos races={profile.races} />}
@@ -142,7 +142,13 @@ function Overview() {
   );
 }
 
-function RaceTable({ races }: { races: RaceRecord[] }) {
+type PubRace = RaceRecord & { userId?: string; nickname?: string };
+const PER_PAGE = 12;
+
+/** Race log of every member (server); falls back to the local log when offline or for a guest's own races. */
+function RaceTable() {
+  const { profile, member, server } = useProfile();
+  const [scope, setScope] = useState<'all' | 'mine'>('all');
   const [fTrack, setFTrack] = useState('');
   const [fMode, setFMode] = useState('');
   const [fChar, setFChar] = useState('');
@@ -150,14 +156,40 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
   const [fDays, setFDays] = useState(0);
   const [sort, setSort] = useState<'at' | 'position' | 'totalMs' | 'gold'>('at');
   const [page, setPage] = useState(0);
-  const [detail, setDetail] = useState<RaceRecord | null>(null);
-  const rows = useMemo(() => {
-    let r = races.filter((x) => (!fTrack || x.trackId === fTrack) && (!fMode || x.mode === fMode) && (!fChar || x.charId === fChar) && (!fVeh || x.vehicleId === fVeh) && (!fDays || x.at > Date.now() - fDays * 864e5));
-    r = [...r].sort((a, b) => (sort === 'at' ? b.at - a.at : sort === 'gold' ? b.gold - a.gold : (a[sort] as number) - (b[sort] as number)));
-    return r;
-  }, [races, fTrack, fMode, fChar, fVeh, fDays, sort]);
-  const per = 12;
-  const view = rows.slice(page * per, page * per + per);
+  const [detail, setDetail] = useState<PubRace | null>(null);
+  const [remote, setRemote] = useState<{ races: PubRace[]; total: number } | null>(null);
+  const [err, setErr] = useState('');
+  const useRemote = server && (scope === 'all' || member);
+  useEffect(() => {
+    if (!useRemote) return;
+    let alive = true;
+    setErr('');
+    const q = new URLSearchParams({ limit: String(PER_PAGE), offset: String(page * PER_PAGE), sort });
+    if (fTrack) q.set('track', fTrack);
+    if (fMode) q.set('mode', fMode);
+    if (fChar) q.set('char', fChar);
+    if (fVeh) q.set('vehicle', fVeh);
+    if (fDays) q.set('days', String(fDays));
+    if (scope === 'mine') q.set('mine', '1');
+    api<{ races: PubRace[]; total: number }>(`records/races?${q}`)
+      .then((r) => alive && setRemote(r))
+      .catch((e) => {
+        if (!alive) return;
+        setErr(e.message);
+        setRemote({ races: [], total: 0 });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [useRemote, scope, fTrack, fMode, fChar, fVeh, fDays, sort, page]);
+  const local = useMemo(() => {
+    const r = profile.races.filter((x) => (!fTrack || x.trackId === fTrack) && (!fMode || x.mode === fMode) && (!fChar || x.charId === fChar) && (!fVeh || x.vehicleId === fVeh) && (!fDays || x.at > Date.now() - fDays * 864e5));
+    return [...r].sort((a, b) => (sort === 'at' ? b.at - a.at : sort === 'gold' ? b.gold - a.gold : (a[sort] as number) - (b[sort] as number)));
+  }, [profile.races, fTrack, fMode, fChar, fVeh, fDays, sort]);
+  const view: PubRace[] = useRemote ? (remote?.races ?? []) : local.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const total = useRemote ? (remote?.total ?? 0) : local.length;
+  const isMine = (r: PubRace) => (r.userId ? r.userId === profile.userId : true);
+  const racer = (r: PubRace) => r.nickname || (isMine(r) ? profile.nickname : '-');
   const sel = (v: string, set: (x: string) => void, opts: [string, string][], label: string) => (
     <select className="input" style={{ width: 'auto', padding: '6px 10px', fontSize: 14 }} value={v} onChange={(e) => (set(e.target.value), setPage(0))}>
       <option value="">{label}</option>
@@ -175,7 +207,7 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
           ◀ 목록
         </button>
         <h3>
-          {TRACK_BY_ID[detail.trackId]?.name} · {new Date(detail.at).toLocaleString()} · {detail.position}위
+          {racer(detail)} · {TRACK_BY_ID[detail.trackId]?.name} · {new Date(detail.at).toLocaleString()} · {detail.position}위
         </h3>
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 280 }}>
@@ -184,7 +216,7 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', background: e.isPlayer ? '#EEF6FF' : undefined, borderRadius: 8, padding: 2 }}>
                 <b style={{ width: 20 }}>{e.position}</b>
                 <img src={portrait(e.charId as CharId, {}, 48)} style={{ width: 26 }} alt="" />
-                <span style={{ flex: 1 }}>{CHAR_BY_ID[e.charId as CharId]?.name}</span>
+                <span style={{ flex: 1 }}>{e.isPlayer ? `${racer(detail)} (${CHAR_BY_ID[e.charId as CharId]?.name})` : CHAR_BY_ID[e.charId as CharId]?.name}</span>
                 <small>{VEHICLE_BY_ID[e.vehicleId]?.name}</small>
                 <span className="num">{fmtMs(e.totalMs)}</span>
               </div>
@@ -208,20 +240,42 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
       </div>
     );
   }
+  const SCOPES: ['all' | 'mine', string][] = [
+    ['all', '🌏 전체 유저'],
+    ['mine', '🙋 내 기록'],
+  ];
   return (
     <div>
+      <div className="tabs" style={{ marginBottom: 8 }}>
+        {SCOPES.map(([k, l]) => (
+          <button
+            key={k}
+            className={`tab ${scope === k ? 'on' : ''}`}
+            style={{ fontSize: 13 }}
+            onClick={() => {
+              setScope(k);
+              setPage(0);
+              setRemote(null);
+            }}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      {scope === 'all' && !server && <p style={{ color: '#2F6FDB', margin: '4px 0' }}>오프라인 모드에서는 내 기록만 볼 수 있어요.</p>}
+      {scope === 'all' && server && !member && <p style={{ color: '#2F6FDB', margin: '4px 0' }}>회원의 기록만 공개 목록에 올라가요. 회원가입하고 기록을 남겨 보세요!</p>}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         {sel(fTrack, setFTrack, TRACKS.map((t) => [t.id, t.name]), '전체 트랙')}
         {sel(fMode, setFMode, [['race', '대전'], ['timeattack', '타임어택'], ['practice', '연습']], '전체 모드')}
         {sel(fChar, setFChar, CHARACTERS.map((c) => [c.id, c.name]), '전체 캐릭터')}
         {sel(fVeh, setFVeh, Object.values(VEHICLE_BY_ID).map((v) => [v.id, v.name]), '전체 차량')}
-        <select className="input" style={{ width: 'auto', padding: '6px 10px', fontSize: 14 }} value={fDays} onChange={(e) => setFDays(+e.target.value)}>
+        <select className="input" style={{ width: 'auto', padding: '6px 10px', fontSize: 14 }} value={fDays} onChange={(e) => (setFDays(+e.target.value), setPage(0))}>
           <option value={0}>전체 기간</option>
           <option value={1}>오늘</option>
           <option value={7}>7일</option>
           <option value={30}>30일</option>
         </select>
-        <select className="input" style={{ width: 'auto', padding: '6px 10px', fontSize: 14 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+        <select className="input" style={{ width: 'auto', padding: '6px 10px', fontSize: 14 }} value={sort} onChange={(e) => (setSort(e.target.value as typeof sort), setPage(0))}>
           <option value="at">최신순</option>
           <option value="position">순위순</option>
           <option value="totalMs">시간순</option>
@@ -232,6 +286,7 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
         <thead>
           <tr style={{ color: '#2F6FDB', textAlign: 'left' }}>
             <th>날짜</th>
+            <th>레이서</th>
             <th>모드</th>
             <th>트랙</th>
             <th>난이도</th>
@@ -245,8 +300,9 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
         </thead>
         <tbody>
           {view.map((r) => (
-            <tr key={r.id} onClick={() => setDetail(r)} style={{ cursor: 'pointer', borderTop: '1px solid #E8EFF8' }}>
+            <tr key={r.id} onClick={() => setDetail(r)} style={{ cursor: 'pointer', borderTop: '1px solid #E8EFF8', background: scope === 'all' && isMine(r) ? '#fff0b8' : undefined }}>
               <td>{new Date(r.at).toLocaleDateString()}</td>
+              <td>{racer(r)}</td>
               <td>{r.mode === 'race' ? '대전' : r.mode === 'timeattack' ? '타임어택' : '연습'}</td>
               <td>{TRACK_BY_ID[r.trackId]?.name}</td>
               <td>{DIFF[r.difficulty]?.label}</td>
@@ -262,15 +318,17 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
           ))}
         </tbody>
       </table>
-      {!rows.length && <p>기록이 없어요. 레이스를 달려 보세요!</p>}
+      {err && <p>{err}</p>}
+      {useRemote && !remote && <p>불러오는 중…</p>}
+      {(!useRemote || remote) && !view.length && <p>기록이 없어요. 레이스를 달려 보세요!</p>}
       <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
         <button className="btn small ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>
           ◀
         </button>
         <span>
-          {page + 1} / {Math.max(1, Math.ceil(rows.length / per))}
+          {page + 1} / {Math.max(1, Math.ceil(total / PER_PAGE))}
         </span>
-        <button className="btn small ghost" disabled={(page + 1) * per >= rows.length} onClick={() => setPage(page + 1)}>
+        <button className="btn small ghost" disabled={(page + 1) * PER_PAGE >= total} onClick={() => setPage(page + 1)}>
           ▶
         </button>
       </div>
@@ -278,44 +336,98 @@ function RaceTable({ races }: { races: RaceRecord[] }) {
   );
 }
 
+type Holder = { ms: number; userId: string; nickname: string; charId: string; vehicleId: string };
+type TrackRecord = { plays: number; players: number; wins: number; race?: Holder; lap?: Holder; ta?: Holder };
+
+/** Per-track records of every member, with the viewer's own bests underneath. */
 function TrackTab() {
-  const p = useProfile((s) => s.profile);
+  const { profile: p, server } = useProfile();
   const { set } = useApp();
+  const [recs, setRecs] = useState<Record<string, TrackRecord> | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (!server) return;
+    api<{ tracks: Record<string, TrackRecord> }>('records/tracks')
+      .then((r) => setRecs(r.tracks))
+      .catch((e) => setErr(e.message));
+  }, [server]);
+  const holder = (h: Holder | undefined) =>
+    h ? (
+      <>
+        <span className="num">{fmtMs(h.ms)}</span> <small style={{ color: h.userId === p.userId ? '#E8412C' : '#4B5A78' }}>{h.nickname}</small>
+      </>
+    ) : (
+      '-'
+    );
+  const medalIcon = (m: string | null) => (m === 'gold' ? '🥇' : m === 'silver' ? '🥈' : m === 'bronze' ? '🥉' : '');
   return (
-    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
-      {TRACKS.map((t) => {
-        const rs = p.races.filter((r) => r.trackId === t.id);
-        const best = p.bestRace[t.id];
-        const ta = p.bestTA[t.id];
-        const medal = ta ? medalFor(t.id, ta.ms) : null;
-        return (
-          <div key={t.id} className="card" style={{ cursor: 'default' }}>
-            <img src={trackImage(t, 300, 120)} style={{ width: '100%', borderRadius: 12 }} alt="" />
-            <b>
-              {t.no}. {t.name}
-            </b>
-            <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-              <Stars n={countStars(p.stars[t.id] ?? 0)} size={14} /> · 플레이 {rs.length}회
-              <br />
-              최고 순위 {best ? `${best.pos}위` : '-'} · 베스트 {best ? fmtMs(best.ms) : '-'} · 베스트 랩 {best ? fmtMs(best.lap) : '-'}
-              <br />
-              타임어택 {ta ? fmtMs(ta.ms) : '-'} {medal === 'gold' ? '🥇' : medal === 'silver' ? '🥈' : medal === 'bronze' ? '🥉' : ''}
+    <div>
+      {!server && <p style={{ color: '#2F6FDB', margin: '0 0 8px' }}>오프라인 모드에서는 전체 유저 기록을 볼 수 없어요. 내 기록만 표시돼요.</p>}
+      {err && <p>{err}</p>}
+      {server && !recs && !err && <p>불러오는 중…</p>}
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
+        {TRACKS.map((t) => {
+          const g = recs?.[t.id];
+          const myPlays = p.races.filter((r) => r.trackId === t.id).length;
+          const best = p.bestRace[t.id];
+          const ta = p.bestTA[t.id];
+          return (
+            <div key={t.id} className="card" style={{ cursor: 'default' }}>
+              <img src={trackImage(t, 300, 120)} style={{ width: '100%', borderRadius: 12 }} alt="" />
+              <b>
+                {t.no}. {t.name}
+              </b>
+              {server && (
+                <div style={{ fontSize: 13, lineHeight: 1.6 }}>
+                  🌏 전체 플레이 {g?.plays ?? 0}회 · 레이서 {g?.players ?? 0}명
+                  <br />
+                  🏁 대전 최고 기록 {holder(g?.race)}
+                  <br />
+                  ⚡ 베스트 랩 {holder(g?.lap)}
+                  <br />
+                  👻 타임어택 1위 {holder(g?.ta)} {g?.ta ? medalIcon(medalFor(t.id, g.ta.ms)) : ''}
+                </div>
+              )}
+              <div style={{ fontSize: 12, lineHeight: 1.6, marginTop: 4, paddingTop: 4, borderTop: '1px dashed #E3ECF7', color: '#4B5A78' }}>
+                <Stars n={countStars(p.stars[t.id] ?? 0)} size={12} /> 내 기록 · 플레이 {myPlays}회
+                <br />
+                최고 순위 {best ? `${best.pos}위` : '-'} · 베스트 {best ? fmtMs(best.ms) : '-'} · 랩 {best ? fmtMs(best.lap) : '-'}
+                <br />
+                타임어택 {ta ? fmtMs(ta.ms) : '-'} {ta ? medalIcon(medalFor(t.id, ta.ms)) : ''}
+              </div>
+              {p.unlockedTracks.includes(t.id) && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                  <button
+                    className="btn small sky"
+                    onClick={() => {
+                      set({ mode: 'timeattack', trackId: t.id });
+                      startRaceFlow(t.id, 'timeattack', 'normal');
+                    }}
+                  >
+                    👻 고스트와 대결
+                  </button>
+                  {g?.ta && g.ta.userId !== p.userId && (
+                    <button
+                      className="btn small ghost"
+                      onClick={async () => {
+                        try {
+                          const gh = await api<{ ghost: string }>(`timeattack/ghost?track=${t.id}&user=${g.ta!.userId}`);
+                          set({ mode: 'timeattack', trackId: t.id });
+                          startRaceFlow(t.id, 'timeattack', 'normal', unb64(gh.ghost));
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                    >
+                      👑 1위와 대결
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-            {p.unlockedTracks.includes(t.id) && (
-              <button
-                className="btn small sky"
-                style={{ marginTop: 6 }}
-                onClick={() => {
-                  set({ mode: 'timeattack', trackId: t.id });
-                  startRaceFlow(t.id, 'timeattack', 'normal');
-                }}
-              >
-                👻 고스트와 대결
-              </button>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
