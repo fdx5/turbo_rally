@@ -560,11 +560,13 @@ canvas.game {
   position: absolute;
   left: calc(14px + var(--safe-l));
   bottom: calc(14px + var(--safe-b));
-  width: 170px;
-  height: 170px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(3px);
+  width: 190px;
+  height: 190px;
+  border-radius: 22px;
+  background: rgba(30, 43, 74, 0.72);
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 0 rgba(30, 43, 74, 0.5);
+  backdrop-filter: blur(4px);
 }
 .hud-stand {
   position: absolute;

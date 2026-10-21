@@ -136,7 +136,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
           ))}
         </div>
       )}
-      <canvas ref={mapRef} className="hud-map" width={220} height={220} />
+      <canvas ref={mapRef} className="hud-map" width={440} height={440} />
       {h.countdown && (
         <div key={h.countdown} className={`center-msg countdown ${h.countdown === 'GO!' ? 'go' : ''}`}>
           {h.countdown}

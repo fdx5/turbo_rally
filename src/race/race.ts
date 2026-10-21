@@ -1044,8 +1044,8 @@ export class RaceSession {
       minZ = Math.min(minZ, m.pz[i]);
       maxZ = Math.max(maxZ, m.pz[i]);
     }
-    const S = 220;
-    const pad = 16;
+    const S = 440; // 2x backing store for a crisp map on hi-dpi screens
+    const pad = 40;
     const sx = (S - pad * 2) / Math.max(maxX - minX, maxZ - minZ);
     this.mapXf = { sx, ox: pad - minX * sx + (S - pad * 2 - (maxX - minX) * sx) / 2, oz: pad - minZ * sx + (S - pad * 2 - (maxZ - minZ) * sx) / 2 };
     const c = document.createElement('canvas');
@@ -1066,16 +1066,23 @@ export class RaceSession {
       g.lineCap = 'round';
       g.stroke();
     };
-    draw(m, 14, 'rgba(91,78,143,0.55)');
-    for (const s of this.world.shortcuts) draw(s, 7, 'rgba(244,221,170,0.9)');
-    draw(m, 9, '#FFFFFF');
-    // start line
+    draw(m, 34, '#0E1630');
+    for (const s of this.world.shortcuts) draw(s, 18, '#0E1630');
+    for (const s of this.world.shortcuts) draw(s, 9, '#FFC93C');
+    draw(m, 22, '#F4F7FC');
+    // start/finish line: checkered bar across the road
     const x0 = m.px[0] * sx + this.mapXf.ox;
     const y0 = m.pz[0] * sx + this.mapXf.oz;
-    g.fillStyle = '#FF8FB8';
-    g.beginPath();
-    g.arc(x0, y0, 4, 0, Math.PI * 2);
-    g.fill();
+    const h0 = Math.atan2(m.px[2] - m.px[0], m.pz[2] - m.pz[0]);
+    g.save();
+    g.translate(x0, y0);
+    g.rotate(-h0);
+    for (let k = 0; k < 4; k++)
+      for (let j = 0; j < 2; j++) {
+        g.fillStyle = (k + j) % 2 ? '#1E2B4A' : '#FFFFFF';
+        g.fillRect(-12 + k * 6, -6 + j * 6, 6, 6);
+      }
+    g.restore();
     this.mapBg = c;
   }
   private drawMinimap() {
@@ -1085,25 +1092,51 @@ export class RaceSession {
     g.clearRect(0, 0, c.width, c.height);
     g.drawImage(this.mapBg, 0, 0, c.width, c.height);
     const k = c.width / this.mapBg.width;
-    const sorted = [...this.racers].sort((a, b) => (a.isPlayer ? 1 : 0) - (b.isPlayer ? 1 : 0));
-    for (const r of sorted) {
-      const x = (r.body.x * this.mapXf.sx + this.mapXf.ox) * k;
-      const y = (r.body.z * this.mapXf.sx + this.mapXf.oz) * k;
-      g.beginPath();
-      g.arc(x, y, r.isPlayer ? 7 : 5, 0, Math.PI * 2);
-      g.fillStyle = CHAR_COLORS[r.charId];
-      g.fill();
-      g.lineWidth = r.isPlayer ? 3 : 2;
-      g.strokeStyle = '#FFFFFF';
-      g.stroke();
-    }
+    const px = (x: number) => (x * this.mapXf.sx + this.mapXf.ox) * k;
+    const pz = (z: number) => (z * this.mapXf.sx + this.mapXf.oz) * k;
     if (this.ghost?.model.root.visible) {
       const gp = this.ghost.model.root.position;
       g.beginPath();
-      g.arc((gp.x * this.mapXf.sx + this.mapXf.ox) * k, (gp.z * this.mapXf.sx + this.mapXf.oz) * k, 5, 0, Math.PI * 2);
-      g.fillStyle = 'rgba(162,210,255,0.7)';
+      g.arc(px(gp.x), pz(gp.z), 9, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(162,210,255,0.75)';
       g.fill();
     }
+    // rivals: character-coloured dots with a dark rim so they read on the white road
+    for (const r of this.racers) {
+      if (r.isPlayer) continue;
+      g.beginPath();
+      g.arc(px(r.body.x), pz(r.body.z), 13, 0, Math.PI * 2);
+      g.fillStyle = CHAR_COLORS[r.charId];
+      g.fill();
+      g.lineWidth = 4;
+      g.strokeStyle = '#1E2B4A';
+      g.stroke();
+    }
+    // player: pulsing halo + heading arrow, drawn on top
+    const p = this.player.body;
+    const x = px(p.x);
+    const y = pz(p.z);
+    const pulse = (performance.now() % 1200) / 1200;
+    g.beginPath();
+    g.arc(x, y, 20 + pulse * 22, 0, Math.PI * 2);
+    g.fillStyle = `rgba(255,90,54,${0.45 * (1 - pulse)})`;
+    g.fill();
+    g.save();
+    g.translate(x, y);
+    g.rotate(-p.yaw);
+    g.beginPath();
+    g.moveTo(0, 28);
+    g.lineTo(20, -17);
+    g.lineTo(0, -7);
+    g.lineTo(-20, -17);
+    g.closePath();
+    g.lineJoin = 'round';
+    g.lineWidth = 8;
+    g.strokeStyle = '#FFFFFF';
+    g.stroke();
+    g.fillStyle = '#FF5A36';
+    g.fill();
+    g.restore();
   }
 
   dispose() {
