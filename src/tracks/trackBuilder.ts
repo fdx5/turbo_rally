@@ -174,7 +174,7 @@ function edgeExtrude(
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
     const l = Math.hypot(dx, dy) || 1;
-    return [dy / l, -dx / l];
+    return [-dy / l, dx / l];
   });
   const pos: number[] = [];
   const nor: number[] = [];
@@ -195,6 +195,7 @@ function edgeExtrude(
   };
   const P = profile.length;
   let hullRings = 0;
+  let hullFlip: boolean | null = null;
   let prevIn = false;
   for (let k = 0; k < segCount; k++) {
     const i0 = path.wrap(k);
@@ -220,10 +221,22 @@ function edgeExtrude(
         [r1, n1, j],
         [r1, n1, j + 1],
       ] as const;
-      for (const [r, nn, jj] of quad) {
-        pos.push(r[jj * 3], r[jj * 3 + 1], r[jj * 3 + 2]);
-        nor.push(nn[jj * 3], nn[jj * 3 + 1], nn[jj * 3 + 2]);
-        col.push(c.r, c.g, c.b);
+      for (let q = 0; q < 6; q += 3) {
+        // orient each triangle so its geometric normal agrees with the profile normal
+        const tri = [quad[q], quad[q + 1], quad[q + 2]];
+        const P0 = tri.map(([r, , jj]) => [r[jj * 3], r[jj * 3 + 1], r[jj * 3 + 2]]);
+        const ax = P0[1][0] - P0[0][0], ay = P0[1][1] - P0[0][1], az = P0[1][2] - P0[0][2];
+        const bx = P0[2][0] - P0[0][0], by = P0[2][1] - P0[0][1], bz = P0[2][2] - P0[0][2];
+        const gx = ay * bz - az * by, gy = az * bx - ax * bz, gz = ax * by - ay * bx;
+        const [, n0q, j0q] = tri[0];
+        const d = gx * n0q[j0q * 3] + gy * n0q[j0q * 3 + 1] + gz * n0q[j0q * 3 + 2];
+        if (d < 0) [tri[1], tri[2]] = [tri[2], tri[1]];
+        if (hullFlip === null) hullFlip = d < 0;
+        for (const [r, nn, jj] of tri) {
+          pos.push(r[jj * 3], r[jj * 3 + 1], r[jj * 3 + 2]);
+          nor.push(nn[jj * 3], nn[jj * 3 + 1], nn[jj * 3 + 2]);
+          col.push(c.r, c.g, c.b);
+        }
       }
     }
     // hull rings (indexed, shared)
@@ -236,7 +249,10 @@ function edgeExtrude(
     hnor.push(...n1);
     const a = (hullRings - 1) * P;
     const b = hullRings * P;
-    for (let j = 0; j < P - 1; j++) hidx.push(a + j, b + j, a + j + 1, a + j + 1, b + j, b + j + 1);
+    for (let j = 0; j < P - 1; j++) {
+      if (hullFlip) hidx.push(a + j, a + j + 1, b + j, a + j + 1, b + j + 1, b + j);
+      else hidx.push(a + j, b + j, a + j + 1, a + j + 1, b + j, b + j + 1);
+    }
     hullRings++;
     prevIn = true;
   }

@@ -55,6 +55,7 @@ if (q.get('autoplay')) {
     session.autoplay = true;
   });
 }
+const ts = Number(q.get('ts') ?? 1);
 let last = performance.now();
 let frames = 0;
 let fpsT = 0;
@@ -69,7 +70,7 @@ function loop(now: number) {
     frames = 0;
     fpsT = 0;
   }
-  session.frame(dt);
+  session.frame(dt * ts);
   R.sample(dt * 1000);
   requestAnimationFrame(loop);
 }

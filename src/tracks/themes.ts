@@ -22,7 +22,7 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
     fog: { color: '#FFE3EF', near: 160, far: 720 },
     light: { sun: '#FFF1E0', sunI: 2.3, hemiSky: '#FFD6EA', hemiGround: '#FFE9C9', hemiI: 1.25, amb: 0.25 },
     ground: ['#C8F2C3', '#B6EDB8', '#FFE1F0'],
-    shoulder: '#FBD3E6',
+    shoulder: '#F3DDBA',
     road: { base: '#F2D7E4', speck: '#E6C3D4', line: '#FFFFFF', edge: '#FFFFFF' },
     curb: ['#FF8FB8', '#FFFFFF'],
     wall: { style: 'candy', a: '#FF8FB8', b: '#FFFFFF' },

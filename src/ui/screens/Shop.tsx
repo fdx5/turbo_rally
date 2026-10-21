@@ -11,10 +11,27 @@ import { vehiclePrice } from '../../../shared/economy';
 import { audio } from '../../audio/engine';
 import { music } from '../../audio/music';
 import { say } from '../../audio/voice';
-import { portrait, vehicleThumb } from '../portraits';
+import { portrait, vehicleThumb, cosmeticThumb, enqueueThumb } from '../portraits';
 import { useApp } from '../../game/app';
 
 type Tab = 'cos' | 'weapon' | 'vehicle' | 'special';
+
+function CosThumb({ c, char }: { c: CosmeticDef; char: CharId }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setUrl(null);
+    enqueueThumb(() => alive && setUrl(cosmeticThumb(char, c.category, c.id, 128)));
+    return () => {
+      alive = false;
+    };
+  }, [c.id, char]);
+  return (
+    <div style={{ width: 92, height: 92, margin: '0 auto', borderRadius: 14, background: 'repeating-linear-gradient(135deg,#fff 0 10px,#fff4f8 10px 20px)', display: 'grid', placeItems: 'center' }}>
+      {url ? <img src={url} style={{ width: 92, height: 92 }} alt="" /> : <div className="meter" style={{ width: 40, height: 8 }}><i style={{ width: '60%' }} /></div>}
+    </div>
+  );
+}
 
 function TierFrame({ tier, children }: { tier: CosmeticDef['tier']; children: React.ReactNode }) {
   const col = TIER_INFO[tier].color;
@@ -46,13 +63,6 @@ function TierFrame({ tier, children }: { tier: CosmeticDef['tier']; children: Re
   );
 }
 
-const SWATCH = (c: CosmeticDef) => (
-  <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
-    {[c.c1, c.c2, c.gem].filter(Boolean).map((x, i) => (
-      <span key={i} style={{ width: 12, height: 12, borderRadius: 6, background: x, border: '1px solid #0002' }} />
-    ))}
-  </div>
-);
 
 export function Shop() {
   const { profile, buy, equip, setLoadout, member } = useProfile();
@@ -170,8 +180,7 @@ export function Shop() {
                     <TierFrame key={c.id} tier={c.tier}>
                       <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => tryOn(c)}>
                         <div style={{ fontSize: 11, color: TIER_INFO[c.tier].color === 'rainbow' ? '#b06ad9' : TIER_INFO[c.tier].color }}>{TIER_INFO[c.tier].name}</div>
-                        <div style={{ fontSize: 30 }}>{CATEGORIES.find((x) => x.id === c.category)?.icon}</div>
-                        {SWATCH(c)}
+                        <CosThumb c={c} char={char} />
                         <div style={{ fontSize: 13, minHeight: 34, lineHeight: 1.2 }}>{c.name}</div>
                         {own ? <div style={{ fontSize: 13, color: '#3cb36a' }}>{worn ? '착용 중 ✔' : '보유 ✔'}</div> : priceTag(c.id, c.price)}
                         {trial[c.category] === c.id && <div style={{ fontSize: 11, color: '#ff6fa3' }}>시착 중</div>}
@@ -315,8 +324,7 @@ export function Shop() {
                   return (
                     <TierFrame key={id} tier={c.tier}>
                       <div style={{ textAlign: 'center' }} onClick={() => tryOn(c)}>
-                        <div style={{ fontSize: 34 }}>{CATEGORIES.find((x) => x.id === c.category)?.icon}</div>
-                        {SWATCH(c)}
+                        <CosThumb c={c} char={char} />
                         <div style={{ fontSize: 13 }}>{c.name}</div>
                         {owned(id) ? <div style={{ color: '#3cb36a' }}>보유 ✔</div> : priceTag(id, c.price)}
                         {!owned(id) && (

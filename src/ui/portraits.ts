@@ -86,3 +86,55 @@ export function prewarmPortraits() {
   };
   step();
 }
+
+/** Cosmetic card thumbnail: the item worn by a character, framed on the relevant body part. */
+export function cosmeticThumb(charId: CharId, cat: string, itemId: string, size = 128): string {
+  const key = `c:${charId}:${itemId}:${size}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const c = new CharacterModel(charId, { [cat]: itemId } as CosmeticLoadout, 'showcase', true);
+  c.setExpression('happy');
+  c.root.rotation.y = cat === 'bracelet' ? -0.7 : -0.35;
+  c.root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(c.root);
+  const head = new THREE.Vector3();
+  c.p.head.getWorldPosition(head);
+  const B = c.def.body;
+  let target: THREE.Vector3;
+  let dist: number;
+  if (cat === 'hat' || cat === 'glasses' || cat === 'sunglasses') {
+    target = head.clone().add(new THREE.Vector3(0, cat === 'hat' ? B.headR * 0.45 : 0, 0));
+    dist = B.headR * (cat === 'hat' ? 6.4 : 4.6);
+  } else if (cat === 'shoes') {
+    target = new THREE.Vector3(0, box.min.y + 0.16, 0.1);
+    dist = 1.5;
+  } else if (cat === 'pants') {
+    target = new THREE.Vector3(0, box.min.y + (B.legLen + B.torsoR) * 0.6, 0);
+    dist = 2.6;
+  } else {
+    target = new THREE.Vector3(0, B.torsoH / 2 + B.torsoR * 0.4, 0);
+    dist = 2.6 + B.torsoR;
+  }
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
+  cam.position.set(target.x + dist * 0.25, target.y + dist * (cat === 'shoes' ? 0.05 : 0.18), target.z + dist);
+  cam.lookAt(target);
+  const url = shoot(c.root, size, cam);
+  cache.set(key, url);
+  return url;
+}
+
+/** Simple idle-time job queue so thumbnails never block a frame for long. */
+const queue: (() => void)[] = [];
+let pumping = false;
+export function enqueueThumb(job: () => void) {
+  queue.push(job);
+  if (pumping) return;
+  pumping = true;
+  const pump = () => {
+    const t0 = performance.now();
+    while (queue.length && performance.now() - t0 < 12) queue.shift()!();
+    if (queue.length) (window.requestIdleCallback ?? ((f: () => void) => setTimeout(f, 16)))(pump);
+    else pumping = false;
+  };
+  pump();
+}

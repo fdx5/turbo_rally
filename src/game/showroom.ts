@@ -111,8 +111,8 @@ export class Showroom {
         this.targetLook.set(1.4, 1.2, 0);
         break;
       case 'shop':
-        this.targetPos.set(0, 1.7, 5.4);
-        this.targetLook.set(0, 1.35, 0);
+        this.targetPos.set(0.4, 2.1, 7.2);
+        this.targetLook.set(0.9, 1.3, 0);
         break;
       case 'podium':
         this.targetPos.set(0, 3.2, 12);
@@ -220,7 +220,8 @@ export class Showroom {
     this.t += dt;
     sharedTime.value = this.t;
     const k = this.mode === 'shop' || this.mode === 'vehicle' ? 1 : 0.4;
-    this.turntable.rotation.y += (this.dragVel + (this.mode === 'shop' ? 0.15 : 0.35) * k) * dt;
+    if (this.mode === 'shop') this.turntable.rotation.y += (this.dragVel + Math.sin(this.t * 0.5) * 0.25) * dt;
+    else this.turntable.rotation.y += (this.dragVel + 0.35 * k) * dt;
     this.dragVel *= Math.exp(-dt * 3);
     this.camPos.x = damp(this.camPos.x, this.targetPos.x, 3, dt);
     this.camPos.y = damp(this.camPos.y, this.targetPos.y, 3, dt);

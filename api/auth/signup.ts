@@ -1,0 +1,32 @@
+import { route, HttpError } from '../_lib/http';
+import { ready, batch } from '../_lib/db';
+import { hashPassword, startSession } from '../_lib/auth';
+import { parse, Signup } from '../_lib/validate';
+import { diffStatements, loadProfile } from '../_lib/repo';
+import { newProfile, welcomeGift } from '../../shared/progress';
+import { randomUUID } from 'node:crypto';
+
+export default route(['POST'], async (req) => {
+  const b = parse(Signup, req.body);
+  const c = await ready();
+  const ex = await c.execute({ sql: 'SELECT 1 FROM users WHERE username = ?', args: [b.username] });
+  if (ex.rows.length) throw new HttpError(409, '이미 사용 중인 아이디예요');
+  const id = randomUUID();
+  const { hash, salt } = await hashPassword(b.password);
+  const now = Date.now();
+  await c.execute({ sql: 'INSERT INTO users (id, username, nickname, pw_hash, pw_salt, created_at, last_login_at) VALUES (?,?,?,?,?,?,?)', args: [id, b.username, b.nickname, hash, salt, now, now] });
+  const base = newProfile('u-' + id, b.nickname);
+  base.ledger = [];
+  base.gold = 0;
+  base.goldEarned = 0;
+  const p = structuredClone(base);
+  p.gold = 3000;
+  p.goldEarned = 3000;
+  p.ledger = [{ id: 'start-' + id, t: now, delta: 3000, reason: '시작 선물' }];
+  welcomeGift(p);
+  base.unlockedTracks = [];
+  base.unlockedVehicles = [];
+  await batch(diffStatements(id, base, p));
+  await startSession(req, id, true);
+  return { profile: await loadProfile(id) };
+});

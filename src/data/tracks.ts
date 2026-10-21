@@ -74,7 +74,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'roller', model: 'donut', u: 0.42, period: 4.2, radius: 2.4 },
       { type: 'roller', model: 'donut', u: 0.76, period: 5.0, radius: 2.4 },
     ],
-    medals: { gold: 142000, silver: 152000, bronze: 165000 }, par: 150000,
+    medals: { gold: 133000, silver: 145000, bronze: 160000 }, par: 149000,
   },
   {
     id: 't2', no: 2, name: '한강 벚꽃 피크닉 파크', theme: 'hangang', bpm: 138,
@@ -97,7 +97,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'crosser', model: 'duckboat', u: 0.72, period: 7, radius: 2.6 },
     ],
     water: { y: -3, color: '#8FD3F4', area: 'side' },
-    medals: { gold: 140000, silver: 150000, bronze: 163000 }, par: 148000,
+    medals: { gold: 134000, silver: 146000, bronze: 161000 }, par: 150000,
   },
   {
     id: 't3', no: 3, name: '서울 네온 시티', theme: 'neon', bpm: 150,
@@ -119,7 +119,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'crosser', model: 'bus', u: 0.2, period: 7, radius: 3.4 },
       { type: 'crosser', model: 'bus', u: 0.47, period: 8, radius: 3.4 },
     ],
-    medals: { gold: 150000, silver: 161000, bronze: 175000 }, par: 158000,
+    medals: { gold: 140000, silver: 152000, bronze: 168000 }, par: 156000,
   },
   {
     id: 't4', no: 4, name: '한옥마을 전통시장', theme: 'hanok', bpm: 145,
@@ -140,7 +140,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'kite', u: 0.9, period: 4.4 },
       { type: 'downhill', model: 'gourd', u0: 0.66, u1: 0.74, interval: 2.8, radius: 1.6 },
     ],
-    medals: { gold: 140000, silver: 150000, bronze: 163000 }, par: 148000,
+    medals: { gold: 130000, silver: 141000, bronze: 156000 }, par: 145000,
   },
   {
     id: 't5', no: 5, name: '뚝딱뚝딱 공사장', theme: 'construction', bpm: 148,
@@ -161,7 +161,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'swinger', model: 'crane', u: 0.6, period: 6.5, len: 16 },
       { type: 'dropper', model: 'crate', u0: 0.3, u1: 0.36, interval: 1.6 },
     ],
-    medals: { gold: 150000, silver: 161000, bronze: 175000 }, par: 158000,
+    medals: { gold: 138000, silver: 150000, bronze: 166000 }, par: 154000,
   },
   {
     id: 't6', no: 6, name: '아이스크림 설원', theme: 'icecream', bpm: 152,
@@ -184,7 +184,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'roller', model: 'snowball', u: 0.86, period: 4.6, radius: 2.0 },
     ],
     water: { y: -6, color: '#B9E6FF', area: 'side' },
-    medals: { gold: 148000, silver: 159000, bronze: 172000 }, par: 156000,
+    medals: { gold: 144000, silver: 156000, bronze: 173000 }, par: 160000,
   },
   {
     id: 't7', no: 7, name: '제주 트로피컬 비치', theme: 'jeju', bpm: 155,
@@ -206,7 +206,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'downhill', model: 'tangerine', u0: 0.62, u1: 0.7, interval: 2.2, radius: 1.3 },
     ],
     water: { y: -2.5, color: '#7FDBEA', area: 'all' },
-    medals: { gold: 148000, silver: 159000, bronze: 172000 }, par: 156000,
+    medals: { gold: 136000, silver: 148000, bronze: 164000 }, par: 152000,
   },
   {
     id: 't8', no: 8, name: '구름 위 무지개 성', theme: 'rainbow', bpm: 165,
@@ -231,7 +231,7 @@ export const TRACKS: TrackDef[] = [
       { type: 'spinner', model: 'stars', u: 0.72, period: 3.4, len: 9 },
     ],
     voidWorld: true,
-    medals: { gold: 152000, silver: 163000, bronze: 178000 }, par: 160000,
+    medals: { gold: 147000, silver: 160000, bronze: 177000 }, par: 164000,
   },
 ];
 export const TRACK_BY_ID: Record<string, TrackDef> = Object.fromEntries(TRACKS.map((t) => [t.id, t]));

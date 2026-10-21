@@ -112,6 +112,7 @@ export class RaceSession {
   startedAt = Date.now();
   paused = false;
   autoplay = false;
+  falls: Record<number, number> = {};
   debugCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
   private ambientT = 0;
   private lastCountdown = '';
@@ -316,7 +317,7 @@ export class RaceSession {
 
   // ------------------------------------------------------------------ main loop
   frame(dtRaw: number) {
-    const dt = Math.min(dtRaw, 0.1);
+    const dt = Math.min(dtRaw, 0.25);
     if (this.paused) {
       this.render(0);
       return;
@@ -405,7 +406,7 @@ export class RaceSession {
     this.refreshAiShared();
     this.acc += dt;
     let steps = 0;
-    while (this.acc >= STEP && steps < 12) {
+    while (this.acc >= STEP && steps < 32) {
       this.acc -= STEP;
       steps++;
       this.stepPhysics(STEP, racing, pc);
@@ -589,6 +590,7 @@ export class RaceSession {
         this.fx.burst(p.clone().add(new THREE.Vector3(0, 1.5, 0)), 14, { colors: ['#FFE066', '#FFC8DD', '#A2D2FF'], shape: PShape.Star, speed: 5, additive: true, intensity: 2 });
         break;
       case 'fall':
+        this.falls[r.slot] = (this.falls[r.slot] ?? 0) + 1;
         this.sfx('fall', p, me ? 1 : 0.5);
         if (this.world.def.water) this.sfx('splash', p, me ? 1 : 0.5);
         setTimeout(() => this.sfx('fairy', p, me ? 1 : 0.4), 400);

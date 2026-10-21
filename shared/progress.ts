@@ -43,6 +43,7 @@ export interface RaceRecord {
   items: Record<string, { used: number; hits: number; gotHit: number }>;
 }
 export interface LedgerEntry {
+  id?: string;
   t: number;
   delta: number;
   reason: string;
@@ -246,7 +247,7 @@ export function newProfile(guestId: string, nickname = '게스트'): Profile {
     equipment: eq,
     weaponLoadout: [],
     races: [],
-    ledger: [{ t: Date.now(), delta: 3000, reason: '시작 선물' }],
+    ledger: [{ id: 'start-' + guestId, t: Date.now(), delta: 3000, reason: '시작 선물' }],
     achievements: {},
     daily: { date: '', missions: [], firstRaceDone: false, roulette: false, discounts: [], ta: {} },
     weekly: { week: '', missions: [] },
@@ -308,7 +309,7 @@ function gold(p: Profile, delta: number, reason: string, ref?: string) {
   p.gold += delta;
   if (delta > 0) p.goldEarned += delta;
   else p.goldSpent -= delta;
-  p.ledger.unshift({ t: Date.now(), delta, reason, ref });
+  p.ledger.unshift({ id: Math.random().toString(36).slice(2) + Date.now().toString(36), t: Date.now(), delta, reason, ref });
   if (p.ledger.length > 400) p.ledger.length = 400;
 }
 
