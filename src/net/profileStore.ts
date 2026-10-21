@@ -96,6 +96,14 @@ export const useProfile = create<ProfileState>((set, get) => ({
       } catch {
         /* offline: fall through */
       }
+    } else if (get().server) {
+      // guests get a ticket too so the race shows up in the public records
+      try {
+        const r = await api<{ raceId: string; token: string }>('race/start', { trackId, mode, difficulty, guestId: get().profile.guestId });
+        return { ...r, t0 };
+      } catch {
+        /* offline: fall through */
+      }
     }
     return { raceId: uid(), token: null, t0 };
   },
@@ -119,6 +127,7 @@ export const useProfile = create<ProfileState>((set, get) => ({
     const out = applyRace(p, { ...input, id: ticket.raceId });
     set({ profile: p });
     get().save();
+    if (ticket.token) api('race/finish', { ...input, raceId: ticket.raceId, token: ticket.token, guestId: p.guestId, gold: out.reward.total }).catch((e) => console.warn('guest race/finish rejected', e));
     return out;
   },
   async buy(itemId) {

@@ -119,7 +119,7 @@ export async function loadRaces(userId: string | null, limit: number, offset: nu
   const w = raceWhere(userId, filter);
   const order = RACE_SORT[filter.sort ?? ''] ?? RACE_SORT.at;
   const rs = await c.execute({
-    sql: `SELECT r.*, u.nickname FROM races r LEFT JOIN users u ON u.id = r.user_id WHERE ${w.sql} ORDER BY ${order} LIMIT ? OFFSET ?`,
+    sql: `SELECT r.*, COALESCE(u.nickname, '게스트#' || upper(substr(r.guest_id, -4))) nickname FROM races r LEFT JOIN users u ON u.id = r.user_id WHERE ${w.sql} ORDER BY ${order} LIMIT ? OFFSET ?`,
     args: [...w.args, limit, offset],
   });
   if (!rs.rows.length) return [];

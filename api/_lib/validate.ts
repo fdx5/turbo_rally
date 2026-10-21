@@ -17,7 +17,8 @@ export const Login = z.object({ username: z.string().max(16), password: z.string
 export const Ids = z.string().max(40);
 export const Mode = z.enum(['race', 'timeattack', 'practice']);
 export const Diff = z.enum(['easy', 'normal', 'hard']);
-export const RaceStart = z.object({ trackId: Ids, mode: Mode, difficulty: Diff });
+export const GuestId = z.string().min(4).max(80);
+export const RaceStart = z.object({ trackId: Ids, mode: Mode, difficulty: Diff, guestId: GuestId.optional() });
 const ItemStat = z.object({ used: z.number().int().min(0).max(200), hits: z.number().int().min(0).max(200), gotHit: z.number().int().min(0).max(200) });
 export const RaceFinish = z.object({
   raceId: Ids.or(z.string().uuid()),
@@ -36,4 +37,6 @@ export const RaceFinish = z.object({
   hitsDealt: z.number().int().min(0).max(300),
   entrants: z.array(z.object({ charId: Ids, vehicleId: Ids, name: z.string().max(20), isPlayer: z.boolean(), position: z.number().int(), totalMs: z.number() })).max(8),
   items: z.record(z.string().max(40), ItemStat),
+  guestId: GuestId.optional(),
+  gold: z.number().int().min(0).max(20000).optional(),
 });

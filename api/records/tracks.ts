@@ -1,19 +1,19 @@
 import { route } from '../_lib/http';
 import { ready } from '../_lib/db';
 
-/** Per-track records across every member: play counts and record holders. */
+/** Per-track records across every racer (members and guests): play counts and record holders. */
 export default route(['GET'], async () => {
   const c = await ready();
   const top = (col: string, where: string) => ({
-    sql: `SELECT * FROM (SELECT r.track_id, r.${col} ms, r.user_id, u.nickname, r.character_id, r.vehicle_id,
+    sql: `SELECT * FROM (SELECT r.track_id, r.${col} ms, r.user_id, COALESCE(u.nickname, '게스트#' || upper(substr(r.guest_id, -4))) nickname, r.character_id, r.vehicle_id,
             ROW_NUMBER() OVER (PARTITION BY r.track_id ORDER BY r.${col} ASC, r.finished_at ASC) rn
-          FROM races r JOIN users u ON u.id = r.user_id WHERE r.valid = 1 AND r.${col} > 0 AND ${where}) WHERE rn = 1`,
+          FROM races r LEFT JOIN users u ON u.id = r.user_id WHERE r.valid = 1 AND r.${col} > 0 AND ${where}) WHERE rn = 1`,
     args: [],
   });
   const [agg, race, lap, ta] = await c.batch(
     [
       {
-        sql: `SELECT track_id, COUNT(*) plays, COUNT(DISTINCT user_id) players, SUM(CASE WHEN mode='race' AND position=1 THEN 1 ELSE 0 END) wins FROM races WHERE valid = 1 AND mode <> 'practice' GROUP BY track_id`,
+        sql: `SELECT track_id, COUNT(*) plays, COUNT(DISTINCT COALESCE(user_id, 'g:' || guest_id)) players, SUM(CASE WHEN mode='race' AND position=1 THEN 1 ELSE 0 END) wins FROM races WHERE valid = 1 AND mode <> 'practice' GROUP BY track_id`,
         args: [],
       },
       top('total_ms', "r.mode = 'race'"),
@@ -43,7 +43,7 @@ export default route(['GET'], async () => {
     for (const r of rows)
       get(String(r.track_id))[key] = {
         ms: Number(r.ms),
-        userId: String(r.user_id),
+        userId: (r.user_id == null ? '' : String(r.user_id)),
         nickname: String(r.nickname),
         charId: String(r.character_id),
         vehicleId: String(r.vehicle_id),

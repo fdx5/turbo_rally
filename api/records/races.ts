@@ -2,7 +2,7 @@ import { route } from '../_lib/http';
 import { requireUser } from '../_lib/auth';
 import { countRaces, loadRaces, type RaceFilter } from '../_lib/repo';
 
-/** Public race log of every member (mine=1 narrows it to the signed-in user). */
+/** Public race log of every racer, guests included (mine=1 narrows it to the signed-in user). */
 export default route(['GET'], async (req) => {
   const q = req.query;
   const uid = q.mine === '1' ? await requireUser(req) : null;

@@ -104,6 +104,34 @@ describe('api', () => {
     expect((await call('progress/daily', { action: 'roulette' })).status).toBe(200);
     expect((await call('progress/daily', { action: 'roulette' })).status).toBe(400);
   });
+  it('guest race is recorded and public records list every racer', async () => {
+    const { signToken } = await import('../api/_lib/auth');
+    const { ready } = await import('../api/_lib/db');
+    const memberCookie = cookie;
+    cookie = '';
+    const guestId = 'guest-abcd1234';
+    expect((await call('race/start', { trackId: 't1', mode: 'race', difficulty: 'normal' })).status).toBe(401);
+    expect((await call('race/start', { trackId: 't1', mode: 'race', difficulty: 'normal', guestId })).status).toBe(200);
+    const t = Date.now() - 140000;
+    const rid = 'race-guest-1';
+    await (await ready()).execute({ sql: 'INSERT INTO race_tickets VALUES (?,?,?,?,?,?,0)', args: [rid, 'g:' + guestId, 't2', 'race', 'normal', t] });
+    const token = await signToken({ rid, sub: 'g:' + guestId, t, track: 't2', mode: 'race', diff: 'normal' }, '2h');
+    const body = { raceId: rid, token, guestId, gold: 1234, mode: 'race', trackId: 't2', difficulty: 'normal', charId: 'momo', vehicleId: 'coupang', position: 1, totalMs: 130000, bestLapMs: 42000, lapTimes: [44000, 43000, 43000], coins: 3, mt3: 1, hitsDealt: 0,
+      entrants: [{ charId: 'momo', vehicleId: 'coupang', name: '게스트', isPlayer: true, position: 1, totalMs: 130000 }], items: {} };
+    // another guest cannot submit this ticket
+    expect((await call('race/finish', { ...body, guestId: 'guest-other' })).status).toBe(403);
+    expect((await call('race/finish', body)).status).toBe(200);
+    const all = await call('records/races?track=t2&sort=totalMs');
+    expect(all.json.total).toBe(2);
+    expect(all.json.races.map((r: { nickname: string }) => r.nickname)).toEqual(['게스트#1234', '테스터']);
+    expect(all.json.races[0].gold).toBe(1234);
+    expect((await call('records/races?mine=1')).status).toBe(401);
+    const tr = await call('records/tracks');
+    expect(tr.json.tracks.t2).toMatchObject({ plays: 2, players: 2, race: { nickname: '게스트#1234', ms: 130000 } });
+    cookie = memberCookie;
+    const mine = await call('records/races?mine=1');
+    expect(mine.json.races.every((r: { nickname: string }) => r.nickname === '테스터')).toBe(true);
+  });
   it('login lockout after 5 failures', async () => {
     for (let i = 0; i < 5; i++) await call('auth/login', { username: 'tester_01', password: 'nope12345' });
     expect((await call('auth/login', { username: 'tester_01', password: 'abcd1234' })).status).toBe(429);

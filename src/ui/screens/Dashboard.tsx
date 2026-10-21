@@ -145,7 +145,7 @@ function Overview() {
 type PubRace = RaceRecord & { userId?: string; nickname?: string };
 const PER_PAGE = 12;
 
-/** Race log of every member (server); falls back to the local log when offline or for a guest's own races. */
+/** Race log of every racer (server); falls back to the local log when offline or for a guest's own races. */
 function RaceTable() {
   const { profile, member, server } = useProfile();
   const [scope, setScope] = useState<'all' | 'mine'>('all');
@@ -188,7 +188,8 @@ function RaceTable() {
   }, [profile.races, fTrack, fMode, fChar, fVeh, fDays, sort]);
   const view: PubRace[] = useRemote ? (remote?.races ?? []) : local.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
   const total = useRemote ? (remote?.total ?? 0) : local.length;
-  const isMine = (r: PubRace) => (r.userId ? r.userId === profile.userId : true);
+  const guestName = `게스트#${profile.guestId.slice(-4).toUpperCase()}`;
+  const isMine = (r: PubRace) => (r.userId ? r.userId === profile.userId : !r.nickname || (!member && r.nickname === guestName));
   const racer = (r: PubRace) => r.nickname || (isMine(r) ? profile.nickname : '-');
   const sel = (v: string, set: (x: string) => void, opts: [string, string][], label: string) => (
     <select className="input" style={{ width: 'auto', padding: '6px 10px', fontSize: 14 }} value={v} onChange={(e) => (set(e.target.value), setPage(0))}>
@@ -263,7 +264,6 @@ function RaceTable() {
         ))}
       </div>
       {scope === 'all' && !server && <p style={{ color: '#2F6FDB', margin: '4px 0' }}>오프라인 모드에서는 내 기록만 볼 수 있어요.</p>}
-      {scope === 'all' && server && !member && <p style={{ color: '#2F6FDB', margin: '4px 0' }}>회원의 기록만 공개 목록에 올라가요. 회원가입하고 기록을 남겨 보세요!</p>}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         {sel(fTrack, setFTrack, TRACKS.map((t) => [t.id, t.name]), '전체 트랙')}
         {sel(fMode, setFMode, [['race', '대전'], ['timeattack', '타임어택'], ['practice', '연습']], '전체 모드')}
