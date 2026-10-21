@@ -6,7 +6,8 @@ import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
 
 process.env.TURSO_DATABASE_URL = '';
-const dbFile = join(process.cwd(), '.data', 'local.db');
+process.env.TR_LOCAL_DB = 'test.db';
+const dbFile = join(process.cwd(), '.data', 'test.db');
 let cookie = '';
 async function call(path: string, body?: unknown, opts: { csrf?: boolean; method?: string } = {}) {
   const mod = await import(/* @vite-ignore */ pathToFileURL(join(process.cwd(), 'api', path.split('?')[0] + '.ts')).href);

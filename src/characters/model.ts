@@ -297,8 +297,14 @@ export class CharacterModel {
     this.p = buildParts(this.def, loadout, pose, outline);
     if (bake && pose !== 'showcase') {
       // race LOD: arms/legs frozen in driving pose, merged per material (few draw calls)
-      this.p.armL.rotation.set(-1.05 + (pose === 'stand' ? 0.25 : 0), 0, 0.12);
-      this.p.armR.rotation.set(-1.05 + (pose === 'stand' ? 0.25 : 0), 0, -0.12);
+      if (pose === 'sit') {
+        // popping out of a roof hatch: elbows resting on the hatch rim
+        this.p.armL.rotation.set(-0.15, 0, 1.25);
+        this.p.armR.rotation.set(-0.15, 0, -1.25);
+      } else {
+        this.p.armL.rotation.set(-1.05 + (pose === 'stand' ? 0.25 : 0), 0, 0.12);
+        this.p.armR.rotation.set(-1.05 + (pose === 'stand' ? 0.25 : 0), 0, -0.12);
+      }
       const faces = new Set(Object.values(this.p.faces));
       bakeMerge(this.p.hips, (o) => o === this.p.head);
       bakeMerge(this.p.head, (o) => faces.has(o));
@@ -352,10 +358,17 @@ export class CharacterModel {
       p.hips.position.y = Math.abs(Math.sin(t * 9)) * 0.02 * Math.min(1, (s.speed ?? 0) / 20);
     } else if (this.pose === 'sit' || this.pose === 'scooter' || this.pose === 'stand') {
       // hands on the wheel, lean into turns
-      p.armL.rotation.x = -1.05 + (this.pose === 'stand' ? 0.25 : 0);
-      p.armR.rotation.x = -1.05 + (this.pose === 'stand' ? 0.25 : 0);
-      p.armL.rotation.z = 0.12 + steer * 0.25;
-      p.armR.rotation.z = -0.12 + steer * 0.25;
+      if (this.pose === 'sit') {
+        // elbows on the roof-hatch rim
+        p.armL.rotation.x = p.armR.rotation.x = -0.15;
+        p.armL.rotation.z = 1.25 + steer * 0.15;
+        p.armR.rotation.z = -1.25 + steer * 0.15;
+      } else {
+        p.armL.rotation.x = -1.05 + (this.pose === 'stand' ? 0.25 : 0);
+        p.armR.rotation.x = -1.05 + (this.pose === 'stand' ? 0.25 : 0);
+        p.armL.rotation.z = 0.12 + steer * 0.25;
+        p.armR.rotation.z = -0.12 + steer * 0.25;
+      }
       p.torso.rotation.z = -steer * 0.12 - (s.lean ?? 0) * 0.15;
       p.head.rotation.z = -steer * 0.1;
       p.head.rotation.y = -steer * 0.25;

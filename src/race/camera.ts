@@ -30,9 +30,10 @@ export class ChaseCam {
     this.t += dt;
     const c = this.cam;
     if (this.mode === 'intro' && introCentre) {
-      const a = this.t * 0.35 + 2.2;
-      const r = 26 - this.t * 2.5;
-      c.position.set(introCentre.x + Math.sin(a) * r, introCentre.y + 7 - this.t * 0.6, introCentre.z + Math.cos(a) * r);
+      // stay inside the road corridor so roadside props never clip the lens
+      const a = this.t * 0.45 + 2.2;
+      const r = Math.max(7, 13 - this.t * 1.6);
+      c.position.set(introCentre.x + Math.sin(a) * r, introCentre.y + 5.5 - this.t * 0.4, introCentre.z + Math.cos(a) * r);
       c.lookAt(introCentre.x, introCentre.y + 1, introCentre.z);
       c.fov = 60;
       c.updateProjectionMatrix();

@@ -22,7 +22,7 @@ export async function verifyPassword(pw: string, hash: string, salt: string) {
 function secret(): Uint8Array {
   let s = process.env.JWT_SECRET;
   if (!s) {
-    if (process.env.VERCEL) throw new HttpError(500, 'JWT_SECRET 미설정');
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') throw new HttpError(500, 'JWT_SECRET 미설정');
     // local dev only: per-machine random secret in git-ignored .data/
     const dir = join(process.cwd(), '.data');
     const f = join(dir, 'dev-jwt-secret');
@@ -50,7 +50,7 @@ const COOKIE = 'tr_session';
 export async function startSession(req: Req, userId: string, remember: boolean) {
   const days = remember ? 30 : 1;
   const tok = await signToken({ sub: userId }, `${days}d`);
-  const secure = process.env.VERCEL || (req.headers['x-forwarded-proto'] ?? '') === 'https' ? '; Secure' : '';
+  const secure = process.env.VERCEL || process.env.RENDER || (req.headers['x-forwarded-proto'] ?? '') === 'https' ? '; Secure' : '';
   setCookie(req, `${COOKIE}=${tok}; Path=/; HttpOnly; SameSite=Lax${secure}${remember ? `; Max-Age=${days * 86400}` : ''}`);
 }
 export function endSession(req: Req) {

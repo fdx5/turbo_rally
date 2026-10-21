@@ -17,7 +17,7 @@ export function db(): Client {
   } else {
     const dir = join(process.cwd(), '.data');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    client = createClient({ url: `file:${join(dir, 'local.db').replace(/\\/g, '/')}` });
+    client = createClient({ url: `file:${join(dir, process.env.TR_LOCAL_DB || 'local.db').replace(/\\/g, '/')}` });
   }
   return client;
 }
