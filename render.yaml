@@ -3,9 +3,10 @@ services:
   - type: web
     name: turbo-rally
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm ci --include=dev && npm run build
-    startCommand: npm start
+    # plain node (no npm/tsx wrapper processes) with a heap cap that fits the free 512MB instance
+    startCommand: node --max-old-space-size=256 dist-server/server/index.mjs
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION

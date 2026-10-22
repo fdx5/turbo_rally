@@ -4,14 +4,17 @@
   "description": "TURBO RALLY — cute pastel 3D kart racer",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node tools/build.mjs",
+    "build:client": "vite build",
+    "postinstall": "node tools/build.mjs --postinstall",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sim:economy": "node tools/economy-sim/sim.mjs",
     "check:secrets": "node tools/check-secrets.mjs",
-    "start": "tsx server/index.ts",
-    "check": "tsc --noEmit && vitest run && vite build"
+    "start": "node --max-old-space-size=256 dist-server/server/index.mjs",
+    "start:ts": "tsx server/index.ts",
+    "check": "tsc --noEmit && vitest run && node tools/build.mjs"
   },
   "author": "",
   "license": "UNLICENSED",
@@ -19,6 +22,7 @@
   "dependencies": {
     "@libsql/client": "0.18.0",
     "@vitejs/plugin-react": "6.1.2",
+    "esbuild": "0.27.0",
     "jose": "6.2.13",
     "postprocessing": "6.39.5",
     "react": "19.3.1",
