@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { damp, dampAngle } from '../core/math';
 import type { KartBody } from '../physics/kart';
 import { useSettings } from '../core/settings';
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 /** Chase camera with speed-FOV, look-back, shake, intro fly-by and finish orbit. */
 export class ChaseCam {
@@ -29,6 +30,19 @@ export class ChaseCam {
   update(dt: number, b: KartBody, x: number, y: number, z: number, yaw: number, lookBack: boolean, introCentre?: THREE.Vector3) {
     this.t += dt;
     const c = this.cam;
+    if (b.loopActive && this.mode === 'chase') {
+      const f = b.loopFrame;
+      const distance = 9;
+      const direction = lookBack ? -1 : 1;
+      this.pos.set(x - f.fx * distance * direction + f.ux * 3.4, y - f.fy * distance * direction + f.uy * 3.4, z - f.fz * distance * direction + f.uz * 3.4);
+      this.look.set(x + f.fx * 12 * direction + f.ux, y + f.fy * 12 * direction + f.uy, z + f.fz * 12 * direction + f.uz);
+      c.up.set(f.ux, f.uy, f.uz);
+      c.position.copy(this.pos);
+      c.lookAt(this.look);
+      this.yaw = yaw;
+      return;
+    }
+    c.up.lerp(WORLD_UP, Math.min(1, dt * 5)).normalize();
     if (this.mode === 'intro' && introCentre) {
       // stay inside the road corridor so roadside props never clip the lens
       const a = this.t * 0.45 + 2.2;

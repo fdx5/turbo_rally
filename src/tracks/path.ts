@@ -1,6 +1,21 @@
 import * as THREE from 'three';
 
 export type Vec3T = [number, number, number];
+/** Round designer corners while retaining open-route endpoints for clean junctions. */
+export function roundRoute(points: Vec3T[], closed: boolean, passes = 2): Vec3T[] {
+  let result = points;
+  for (let pass = 0; pass < passes; pass++) {
+    const next: Vec3T[] = closed ? [] : [result[0]];
+    const count = closed ? result.length : result.length - 1;
+    for (let i = 0; i < count; i++) {
+      const a = result[i], b = result[(i + 1) % result.length];
+      next.push(a.map((v, k) => v * 0.75 + b[k] * 0.25) as Vec3T, a.map((v, k) => v * 0.25 + b[k] * 0.75) as Vec3T);
+    }
+    if (!closed) next.push(result[result.length - 1]);
+    result = next;
+  }
+  return result;
+}
 export const enum Surface {
   Road = 0,
   Dirt = 1,
@@ -26,6 +41,15 @@ export interface ZoneRange {
   t1: number;
   surface: Surface;
 }
+
+export interface RoadFrame {
+  x: number; y: number; z: number;
+  fx: number; fy: number; fz: number;
+  hx: number; hz: number;
+  ux: number; uy: number; uz: number;
+  metric: number;
+}
+export const roadFrame = (): RoadFrame => ({ x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: 1, hx: -1, hz: 0, ux: 0, uy: 1, uz: 0, metric: 1 });
 
 /** Result of projecting a world position onto a path. Reused to avoid GC in the game loop. */
 export class Proj {
@@ -75,6 +99,7 @@ export class TrackPath {
   gap: Uint8Array;
   ramps: Ramp[] = [];
   zones: ZoneRange[] = [];
+  loops: { s0: number; s1: number; radius: number }[] = [];
   /** For shortcut paths: main-path s at start/end (progress mapping). */
   mainS0 = 0;
   mainS1 = 0;
@@ -192,6 +217,11 @@ export class TrackPath {
   }
   /** World position at (s, t). */
   pointAt(s: number, t: number, out: THREE.Vector3, lift = 0) {
+    if (this.loopAt(s)) {
+      this.frameAt(s, frameScratch);
+      const f = frameScratch;
+      return out.set(f.x + f.hx * t + f.ux * lift, f.y + f.uy * lift, f.z + f.hz * t + f.uz * lift);
+    }
     const fi = (this.closed ? ((s % this.length) + this.length) % this.length : Math.max(0, Math.min(this.length, s))) / this.ds;
     const i0 = this.wrap(Math.floor(fi));
     const i1 = this.wrap(i0 + 1);
@@ -203,6 +233,44 @@ export class TrackPath {
     const hz = this.hz[i0] + (this.hz[i1] - this.hz[i0]) * k;
     const bank = this.bankTan[i0] + (this.bankTan[i1] - this.bankTan[i0]) * k;
     out.set(x + hx * t, y + t * bank + lift + this.rampHeight(s, t), z + hz * t);
+    return out;
+  }
+
+  loopAt(s: number) {
+    if (this.closed) s = ((s % this.length) + this.length) % this.length;
+    return this.loops.find(loop => s >= loop.s0 && s < loop.s1);
+  }
+
+  /** Magnetic loop frame. Progress remains monotonic even while the road is upside down. */
+  frameAt(s: number, out: RoadFrame): RoadFrame {
+    if (this.closed) s = ((s % this.length) + this.length) % this.length;
+    const fi = Math.max(0, Math.min(this.length, s)) / this.ds;
+    const a = this.wrap(Math.floor(fi)), b = this.wrap(a + 1), k = fi - Math.floor(fi);
+    out.x = this.px[a] + (this.px[b] - this.px[a]) * k;
+    out.y = this.py[a] + (this.py[b] - this.py[a]) * k;
+    out.z = this.pz[a] + (this.pz[b] - this.pz[a]) * k;
+    let fx = this.fx[a] + (this.fx[b] - this.fx[a]) * k;
+    let fy = this.fy[a] + (this.fy[b] - this.fy[a]) * k;
+    let fz = this.fz[a] + (this.fz[b] - this.fz[a]) * k;
+    const horizontal = Math.hypot(fx, fz) || 1;
+    const dx = fx / horizontal, dz = fz / horizontal;
+    out.hx = -dz; out.hz = dx;
+    const loop = this.loopAt(s);
+    if (loop) {
+      const angle = (s - loop.s0) / (loop.s1 - loop.s0) * Math.PI * 2;
+      const bend = loop.radius * Math.PI * 2 / (loop.s1 - loop.s0);
+      out.x += dx * loop.radius * Math.sin(angle);
+      out.z += dz * loop.radius * Math.sin(angle);
+      out.y += loop.radius * (1 - Math.cos(angle));
+      fx = dx * (1 + bend * Math.cos(angle));
+      fz = dz * (1 + bend * Math.cos(angle));
+      fy = fy / horizontal + bend * Math.sin(angle);
+    }
+    out.metric = Math.hypot(fx, fy, fz) || 1;
+    out.fx = fx / out.metric; out.fy = fy / out.metric; out.fz = fz / out.metric;
+    out.ux = -out.hz * out.fy;
+    out.uy = out.hz * out.fx - out.hx * out.fz;
+    out.uz = out.hx * out.fy;
     return out;
   }
   headingAt(s: number) {
@@ -238,7 +306,9 @@ export class TrackPath {
       for (let i = 0; i < n; i += 2) {
         const dx = x - this.px[i];
         const dz = z - this.pz[i];
-        const dy = (y - this.py[i]) * 2;
+        const t = dx * this.hx[i] + dz * this.hz[i];
+        const surfaceY = this.py[i] + t * this.bankTan[i] + this.rampHeight(i * this.ds, t);
+        const dy = Math.max(0, Math.abs(y - surfaceY) - 3) * 2;
         const d = dx * dx + dz * dz + dy * dy;
         if (d < bestD) {
           bestD = d;
@@ -253,30 +323,46 @@ export class TrackPath {
       if (i < 0 || i >= n) continue;
       const dx = x - this.px[i];
       const dz = z - this.pz[i];
-      const dy = (y - this.py[i]) * 1.5;
+      const t = dx * this.hx[i] + dz * this.hz[i];
+      const surfaceY = this.py[i] + t * this.bankTan[i] + this.rampHeight(i * this.ds, t);
+      const dy = Math.max(0, Math.abs(y - surfaceY) - 3) * 1.5;
       const d = dx * dx + dz * dz + dy * dy;
       if (d < bestD) {
         bestD = d;
         best = i;
       }
     }
-    // refine on the segment [best, best+1] or [best-1, best]
-    let i0 = best;
-    let i1 = this.wrap(best + 1);
-    {
-      const ax = this.px[i1] - this.px[i0];
-      const az = this.pz[i1] - this.pz[i0];
-      const dot = (x - this.px[i0]) * ax + (z - this.pz[i0]) * az;
-      if (dot < 0 && (this.closed || best > 0)) {
-        i1 = i0;
-        i0 = this.wrap(best - 1);
+    // Invert the same bilinear ribbon used by pointAt/rendering. Centre-line-only
+    // projection shifts contact along steep banked hairpins and can bury a wheel.
+    let i0 = best, i1 = this.wrap(best + 1), f = 0, residual = Infinity;
+    for (let offset = -3; offset <= 2; offset++) {
+      const a = this.wrap(best + offset), b = this.wrap(a + 1);
+      if (a === b) continue;
+      const ax = this.px[b] - this.px[a], az = this.pz[b] - this.pz[a];
+      const dhx = this.hx[b] - this.hx[a], dhz = this.hz[b] - this.hz[a];
+      let q = Math.max(0, Math.min(1, ((x - this.px[a]) * ax + (z - this.pz[a]) * az) / (ax * ax + az * az || 1)));
+      let lateral = (x - this.px[a] - ax * q) * this.hx[a] + (z - this.pz[a] - az * q) * this.hz[a];
+      for (let iteration = 0; iteration < 4; iteration++) {
+        const hx = this.hx[a] + dhx * q, hz = this.hz[a] + dhz * q;
+        const dx = ax + dhx * lateral, dz = az + dhz * lateral;
+        const rx = this.px[a] + ax * q + hx * lateral - x;
+        const rz = this.pz[a] + az * q + hz * lateral - z;
+        const determinant = dx * hz - dz * hx;
+        if (Math.abs(determinant) < 0.00001) break;
+        q = Math.max(0, Math.min(1, q - (rx * hz - rz * hx) / determinant));
+        const nhx = this.hx[a] + dhx * q, nhz = this.hz[a] + dhz * q;
+        lateral = ((x - this.px[a] - ax * q) * nhx + (z - this.pz[a] - az * q) * nhz) / (nhx * nhx + nhz * nhz || 1);
       }
+      const ex = this.px[a] + ax * q + (this.hx[a] + dhx * q) * lateral - x;
+      const ez = this.pz[a] + az * q + (this.hz[a] + dhz * q) * lateral - z;
+      const surfaceY = this.py[a] + (this.py[b] - this.py[a]) * q + lateral * (this.bankTan[a] + (this.bankTan[b] - this.bankTan[a]) * q) + this.rampHeight((a + q) * this.ds, lateral);
+      const dy = Math.max(0, Math.abs(y - surfaceY) - 3);
+      const score = ex * ex + ez * ez + dy * dy + Math.abs(surfaceY - y) * 0.0000001;
+      if (score < residual) { residual = score; i0 = a; i1 = b; f = q; }
     }
     const ax = this.px[i1] - this.px[i0];
     const az = this.pz[i1] - this.pz[i0];
     const al = ax * ax + az * az || 1;
-    let f = ((x - this.px[i0]) * ax + (z - this.pz[i0]) * az) / al;
-    f = f < 0 ? 0 : f > 1 ? 1 : f;
     const cx = this.px[i0] + ax * f;
     const cz = this.pz[i0] + az * f;
     const cy = this.py[i0] + (this.py[i1] - this.py[i0]) * f;
@@ -328,3 +414,4 @@ export class TrackPath {
     }
   }
 }
+const frameScratch = roadFrame();

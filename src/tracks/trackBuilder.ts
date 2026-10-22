@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ShortcutDef, SurfaceName, TrackDef } from '../data/tracks';
-import { Proj, Surface, TrackPath, type Vec3T } from './path';
+import { Proj, Surface, TrackPath, roadFrame, roundRoute, type Vec3T } from './path';
 import { THEMES, type ThemeDef } from './themes';
 import { glow, outlineMaterial, toon } from '../art/toon';
 import { boostPadTexture, canvas, groundTexture, roadTexture, roundRect, tex } from '../art/textures';
@@ -10,6 +10,8 @@ import { MeshBuilder } from '../art/builder';
 import { Rng } from '../core/rng';
 import { buildClouds, buildSky, buildWater } from '../art/sky';
 import { buildDressing } from './dressing';
+import { boostPadGeometry } from './boostPads';
+import { buildAdventureWorld } from './adventureWorld';
 
 const SURF: Record<SurfaceName | 'road', Surface> = {
   road: Surface.Road,
@@ -58,6 +60,8 @@ export interface TrackWorld {
 export function buildPaths(def: TrackDef): { main: TrackPath; shortcuts: TrackPath[] } {
   const main = new TrackPath(def.points, true, def.width, null, def.shoulder ?? 6.5);
   const L = main.length;
+  main.loops = (def.loops ?? []).map(l => ({ s0: l.u0 * L, s1: l.u1 * L, radius: l.radius }));
+  for (const loop of main.loops) main.rangeIdx(loop.s0 / L, loop.s1 / L, i => { main.bankTan[i] = 0; });
   for (const nw of def.noWall ?? []) {
     main.rangeIdx(nw.u0, nw.u1, (i) => {
       if (nw.side !== 'R') main.wallL[i] = 0;
@@ -85,7 +89,7 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
   main.pointAt(sc.fromU * L, 0, a);
   main.pointAt(sc.toU * L, 0, b);
   // Long tangent overlaps prevent tight hooks and folded ribbon edges at joins.
-  const overlap = 24;
+  const overlap = 44;
   const a0 = new THREE.Vector3();
   const b1 = new THREE.Vector3();
   main.pointAt(sc.fromU * L - overlap, 0, a0);
@@ -95,7 +99,8 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
     return [x, y || a.y + (b.y - a.y) * k, z];
   });
   const pts: Vec3T[] = [[a0.x, a0.y, a0.z], [a.x, a.y, a.z], ...via, [b.x, b.y, b.z], [b1.x, b1.y, b1.z]];
-  const p = new TrackPath(pts, false, sc.width, pts.map(() => 0), 1.2);
+  const rounded = roundRoute(pts, false);
+  const p = new TrackPath(rounded, false, sc.width, rounded.map(() => 0), 1.2);
   p.mainS0 = sc.fromU * L - overlap;
   p.mainS1 = sc.toU * L + overlap;
   // Match the main road plane at both mouths, easing back to a flat shortcut.
@@ -112,6 +117,15 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
     p.bankTan[i] = (gx * p.hx[i] + gz * p.hz[i]) * blend;
   }
   p.baseSurface = SURF[sc.surface];
+  // Narrow the inside of a branch hairpin smoothly rather than folding a wide ribbon.
+  const safeWidths = new Float32Array(p.n);
+  for (let i = 0; i < p.n; i++) safeWidths[i] = Math.min(sc.width / 2, Math.max(3.6, 0.6 / Math.max(0.001, Math.abs(p.turnRight(i, 2)))));
+  for (let i = 0; i < p.n; i++) {
+    let width = safeWidths[i];
+    for (let j = -10; j <= 10; j++) width = Math.min(width, safeWidths[p.wrap(i + j)] + Math.abs(j) * 0.08);
+    p.halfW[i] = width;
+  }
+  p.loops = (sc.loops ?? []).map(l => ({ s0: l.u0 * p.length, s1: l.u1 * p.length, radius: l.radius }));
   return p;
 }
 
@@ -137,16 +151,15 @@ function ribbon(
   let prevValid = false;
   const uvS = opts.uvScale ?? 1 / 24;
   const [r0, r1] = opts.range ?? [0, segCount];
+  const vertex = new THREE.Vector3();
   for (let k = r0; k <= r1; k++) {
     const i = path.wrap(k);
     const valid = !(opts.skipGap && path.gap[i]) && (!opts.include || opts.include(i));
     if (valid) {
       for (const side of [0, 1] as const) {
         const t = side === 0 ? tA(i) : tB(i);
-        const x = path.px[i] + path.hx[i] * t;
-        const z = path.pz[i] + path.hz[i] * t;
-        const y = path.py[i] + t * path.bankTan[i] + yOff;
-        pos.push(x, y, z);
+        path.pointAt(i * path.ds, t, vertex, yOff);
+        pos.push(vertex.x, vertex.y, vertex.z);
         uv.push(k * path.ds * uvS, side);
         if (opts.color) {
           const c = opts.color(i, side) ?? new THREE.Color(1, 1, 1);
@@ -198,14 +211,18 @@ function edgeExtrude(
   const hnor: number[] = [];
   const hidx: number[] = [];
   const c = new THREE.Color();
+  const vertex = new THREE.Vector3();
+  const frame = roadFrame();
   const ring = (i: number, out: number[], outN: number[]) => {
     const t0 = base(i) * side;
     for (let j = 0; j < profile.length; j++) {
       const [o, h] = profile[j];
       const t = t0 + o * side;
-      out.push(path.px[i] + path.hx[i] * t, path.py[i] + t0 * path.bankTan[i] + h, path.pz[i] + path.hz[i] * t);
+      path.pointAt(i * path.ds, t, vertex, h);
+      out.push(vertex.x, vertex.y, vertex.z);
       const [nx, ny] = pn[j];
-      outN.push(path.hx[i] * nx * side, ny, path.hz[i] * nx * side);
+      path.frameAt(i * path.ds, frame);
+      outN.push(frame.hx * nx * side + frame.ux * ny, frame.uy * ny, frame.hz * nx * side + frame.uz * ny);
     }
   };
   const P = profile.length;
@@ -454,13 +471,13 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   }
 
   // ---------- walls ----------
-  const insideShortcut = (x: number, z: number) => {
+  const insideShortcut = (x: number, y: number, z: number) => {
     for (const sp of shortcuts) {
       for (let i = 0; i < sp.n; i += 1) {
         const dx = x - sp.px[i];
         const dz = z - sp.pz[i];
         const lim = sp.halfW[i] + sp.shoulderL[i] + 1.5;
-        if (dx * dx + dz * dz < lim * lim) return true;
+        if (dx * dx + dz * dz < lim * lim && Math.abs(y - sp.py[i]) < 3) return true;
       }
     }
     return false;
@@ -476,14 +493,14 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         const lim = side < 0 ? p.halfW[i] + p.shoulderL[i] : p.halfW[i] + p.shoulderR[i];
         const x = p.px[i] + p.hx[i] * lim * side;
         const z = p.pz[i] + p.hz[i] * lim * side;
-        if (p === main && insideShortcut(x, z)) continue;
+        if (p === main && insideShortcut(x, p.py[i] + lim * side * p.bankTan[i], z)) continue;
         if (p !== main) {
           // shortcut walls: fade out near both joins
           const s = i * p.ds;
           if (s < 14 || s > p.length - 14) continue;
           // also skip where it sits on the main road
           const mp = main.project(x, p.py[i], z, -1, tmpProj);
-          if (Math.abs(mp.t) < mp.limitL + 0.5) continue;
+          if (Math.abs(mp.t) < mp.limitL + 0.5 && Math.abs(mp.y - p.py[i]) < 3) continue;
         }
         visible[i] = 1;
       }
@@ -548,6 +565,17 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         // the Han river runs along the north edge of the park
         const riverZ = 175 * 1.35;
         if (z > riverZ) h = THREE.MathUtils.lerp(h, lowY, THREE.MathUtils.smoothstep(z, riverZ, riverZ + 14));
+      }
+    }
+    // A bridge must span an actual valley; keeping terrain at road-centre height
+    // underneath it made the former decks read as solid, vertical mesas.
+    if (p === main && d < 85) {
+      for (const [a, b] of bridgeRanges) {
+        const s = i * p.ds;
+        if (s >= a && s <= b) {
+          const blend = THREE.MathUtils.smoothstep(s, a, a + 18) * (1 - THREE.MathUtils.smoothstep(s, b - 18, b));
+          h = Math.min(h, THREE.MathUtils.lerp(h, lowY, blend));
+        }
       }
     }
     return h;
@@ -636,7 +664,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       const g = ribbon(path,
         (i) => side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 1.5),
         (i) => side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 3.2),
-        -0.025, { skipGap: true });
+        -0.025, { skipGap: true, include: i => !path.loopAt(i * path.ds) });
       if (!g) continue;
       const pos = g.attributes.position as THREE.BufferAttribute;
       for (let v = 1; v < pos.count; v += 2) {
@@ -681,6 +709,13 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
             b.cyl(1.0, 1.3, hgt, '#D9D2EA', { p: [x + main.hx[k] * t, bottom + hgt / 2, z + main.hz[k] * t] });
           }
         }
+      }
+    }
+    for (const path of shortcuts) {
+      const g = ribbon(path, i => -path.halfW[i] - path.shoulderL[i] - 1.2, i => path.halfW[i] + path.shoulderR[i] + 1.2, -1.5);
+      if (g) {
+        const deck = new THREE.Mesh(g, toon({ color: def.voidWorld ? '#BDB6E2' : '#8A94AA', side: THREE.DoubleSide }));
+        deck.name = 'branch-deck'; group.add(deck);
       }
     }
     // rainbow-world side skirts so decks read as thick candy slabs
@@ -746,32 +781,15 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   const padTex = boostPadTexture();
   padTex.wrapS = padTex.wrapT = THREE.RepeatWrapping;
   const pads: BoostPad[] = [];
-  const padMat = new THREE.MeshBasicMaterial({ map: padTex, transparent: true, opacity: 0.95, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  padMat.color.setScalar(1.25);
+  const padMat = new THREE.MeshBasicMaterial({ map: padTex, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   const addPad = (path: TrackPath, s: number, t: number) => {
-    const halfLen = 3;
-    const halfWid = 2.4;
+    const halfLen = 6;
+    const halfWid = Math.min(5.4, path.halfW[path.idxAtS(s)] - 0.8);
     pads.push({ path, s, t, halfLen, halfWid });
-    const i = path.idxAtS(s);
-    const p = new THREE.Vector3();
-    path.pointAt(s, t, p, 0.07);
-    const yaw = Math.atan2(path.fx[i], path.fz[i]);
-    const g = new THREE.PlaneGeometry(halfWid * 2, halfLen * 2).rotateX(-Math.PI / 2);
+    const g = boostPadGeometry(path, s, t, halfLen, halfWid);
     const m = new THREE.Mesh(g, padMat);
-    m.position.copy(p);
-    m.rotation.y = yaw + Math.PI;
-    m.rotation.x = 0;
-    m.rotateX(-Math.asin(path.fy[i]));
+    m.name = 'boost-pad';
     group.add(m);
-    const frame = new MeshBuilder();
-    frame.box(halfWid * 2 + 0.5, 0.15, 0.4, '#FFFFFF', { p: [0, 0, halfLen] }, 0.4);
-    frame.box(halfWid * 2 + 0.5, 0.15, 0.4, '#FFFFFF', { p: [0, 0, -halfLen] }, 0.4);
-    frame.box(0.4, 0.15, halfLen * 2, '#FFFFFF', { p: [halfWid, 0, 0] }, 0.4);
-    frame.box(0.4, 0.15, halfLen * 2, '#FFFFFF', { p: [-halfWid, 0, 0] }, 0.4);
-    const fg = frame.build({ outline: false, castShadow: false });
-    fg.position.copy(p);
-    fg.rotation.y = yaw;
-    group.add(fg);
   };
   for (const bp of def.boostPads) addPad(main, bp.u * L, bp.t);
   def.shortcuts.forEach((sc, k) => {
@@ -787,6 +805,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
 
   // ---------- circuit dressing (grandstands, gantries, tyre walls, flags) ----------
   group.add(buildDressing(def, theme, main, groundHeight));
+  group.add(buildAdventureWorld(def, paths, theme, groundHeight));
 
   // ---------- sky ----------
   const sky = buildSky(theme);
@@ -933,11 +952,12 @@ function scatterProps(
       if (rng.chance(0.25)) continue;
       if ((side < 0 ? main.wallL[i] : main.wallR[i]) === 0 && !def.voidWorld) continue;
       const lim = main.halfW[i] + (side < 0 ? main.shoulderL[i] : main.shoulderR[i]);
-      const off = lim + rng.range(3.5, 9) + (rng.chance(0.4) ? rng.range(6, 28) : 0);
+      const name = rng.pick(theme.props);
+      const footprint = ({ tower: 14, cookieHouse: 9, hanok: 10, container: 7, scaffold: 7, busStop: 5 } as Record<string, number>)[name] ?? 4;
+      const off = lim + footprint + rng.range(4, 10) + (rng.chance(0.4) ? rng.range(6, 28) : 0);
       const x = main.px[i] + main.hx[i] * off * side;
       const z = main.pz[i] + main.hz[i] * off * side;
-      if (!clearOf(x, z, 2.5)) continue;
-      const name = rng.pick(theme.props);
+      if (!clearOf(x, z, footprint + 2)) continue;
       const y = def.voidWorld ? main.py[i] - 0.4 : groundHeight(x, z) - 0.1;
       if (def.voidWorld && off > lim + 6) continue;
       place(name, x, y, z, rng.range(0, Math.PI * 2), rng.range(0.85, 1.2), 0.9);

@@ -39,6 +39,7 @@ describe('road contact', () => {
       for (const path of [main, ...shortcuts]) {
         for (let i = 0; i < path.n - 1; i += 7) {
           for (const side of [-0.9, 0, 0.9]) {
+            if (path.loopAt((i + 0.37) * path.ds)) continue;
             path.pointAt((i + 0.37) * path.ds, side * path.halfW[i], v);
             path.project(v.x, v.y, v.z, i, pr);
             expect(Math.abs(pr.y - v.y), `${def.id} sample ${i}`).toBeLessThan(0.025);
@@ -125,7 +126,7 @@ describe('all-track driving regression', () => {
       const { main, shortcuts } = buildPaths(def);
       const world: PhysWorld = { main, paths: [main, ...shortcuts], pads: [],
         lowGravity: (def.lowGravity ?? []).map(g => [g.u0 * main.length, g.u1 * main.length]),
-        voidY: def.voidWorld ? -5 : -20 };
+        voidY: Math.min(...main.py) - 25 };
       const k = new KartBody(vehicle.stats, CHARACTERS[0], world.paths.length), ai = new AIDriver(5, 'balanced', 'hard');
       k.place(world, 0, 0);
       let travelled = 0, last = 0, falls = 0;
@@ -141,7 +142,7 @@ describe('all-track driving regression', () => {
         travelled += delta;
         last = k.progressS;
         expect(Number.isFinite(k.x + k.y + k.z)).toBe(true);
-        if (k.grounded && k.respawnT <= 0) {
+        if (k.grounded && k.respawnT <= 0 && !k.loopActive) {
           world.paths[k.onPath].project(k.x, k.y, k.z, k.hints[k.onPath], pr);
           expect(Math.abs(k.y - pr.y)).toBeLessThan(0.025);
         }

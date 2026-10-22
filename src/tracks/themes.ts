@@ -17,7 +17,7 @@ export interface ThemeDef {
   accent?: [string, string];
 }
 
-export const THEMES: Record<ThemeId, ThemeDef> = {
+const BASE_THEMES: Record<Exclude<ThemeId, 'cavern' | 'volcano'>, ThemeDef> = {
   candy: {
     sky: { top: '#5FB4F5', horizon: '#DDF0FF', bottom: '#F4F8EC', sun: '#FFF4D6', sunDir: [0.5, 0.75, 0.35] },
     fog: { color: '#DDEFFF', near: 260, far: 1300 },
@@ -136,5 +136,29 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
     clouds: 40,
     particles: 'sparkle',
     ambience: 'chimes',
+  },
+};
+
+export const THEMES: Record<ThemeId, ThemeDef> = {
+  ...BASE_THEMES,
+  cavern: {
+    ...BASE_THEMES.neon,
+    sky: { top: '#18192F', horizon: '#66518C', bottom: '#221E39', sun: '#B9B1FF', sunDir: [0.4, 0.7, 0.3], stars: true },
+    fog: { color: '#302943', near: 170, far: 950 },
+    ground: ['#514B67', '#383B50', '#6A5A80'], shoulder: '#756982',
+    road: { base: '#4B526B', speck: '#2D324A', edge: '#90FFE0', line: '#DBDBFF', glowEdge: '#8DF5E2' },
+    curb: ['#8B72DC', '#C7F9F4'], wall: { style: 'stone', a: '#82739A', b: '#50485F' },
+    props: ['iceCrystal', 'rock', 'rock', 'iceCrystal'], landmarks: ['mountain', 'iceMountain'],
+    particles: 'sparkle', ambience: 'chimes',
+  },
+  volcano: {
+    ...BASE_THEMES.construction,
+    sky: { top: '#342032', horizon: '#E98D5F', bottom: '#8D443C', sun: '#FFC389', sunDir: [-0.3, 0.65, 0.4] },
+    fog: { color: '#9C5147', near: 210, far: 1300 },
+    light: { sun: '#FFC99A', sunI: 1.6, hemiSky: '#AD91AE', hemiGround: '#FF6438', hemiI: 0.9, amb: 0.25 },
+    ground: ['#473B44', '#332D38', '#65505A'], shoulder: '#8D6860',
+    road: { base: '#514653', speck: '#292B36', edge: '#FFD984', line: '#FFFFFF', glowEdge: '#FF953E' },
+    curb: ['#FF8C38', '#F5D4AC'], wall: { style: 'basalt', a: '#5C4C59', b: '#A67F72' },
+    props: ['rock', 'rock', 'barrel'], landmarks: ['mountain', 'hallasan'], particles: 'sparkle', ambience: 'waves',
   },
 };

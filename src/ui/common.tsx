@@ -5,8 +5,8 @@ import { I } from './icons';
 import { audio } from '../audio/engine';
 import { xpToNext } from '../../shared/economy';
 import { TRACKS, type TrackDef } from '../data/tracks';
-import { TrackPath } from '../tracks/path';
 import { THEMES } from '../tracks/themes';
+import { buildPaths } from '../tracks/trackBuilder';
 
 export const sfx = {
   click: () => audio.play('uiClick'),
@@ -120,16 +120,16 @@ export function trackImage(t: TrackDef, w = 360, h = 200): string {
     g.ellipse((i * 73) % w, 30 + (i % 3) * 18, 34, 12, 0, 0, Math.PI * 2);
     g.fill();
   }
-  const p = new TrackPath(t.points, true, t.width);
+  const { main: p, shortcuts } = buildPaths(t);
   let minX = Infinity;
   let maxX = -Infinity;
   let minZ = Infinity;
   let maxZ = -Infinity;
-  for (let i = 0; i < p.n; i++) {
-    minX = Math.min(minX, p.px[i]);
-    maxX = Math.max(maxX, p.px[i]);
-    minZ = Math.min(minZ, p.pz[i]);
-    maxZ = Math.max(maxZ, p.pz[i]);
+  for (const path of [p, ...shortcuts]) for (let i = 0; i < path.n; i++) {
+    minX = Math.min(minX, path.px[i]);
+    maxX = Math.max(maxX, path.px[i]);
+    minZ = Math.min(minZ, path.pz[i]);
+    maxZ = Math.max(maxZ, path.pz[i]);
   }
   const s = Math.min((w - 40) / (maxX - minX), (h - 40) / (maxZ - minZ));
   const ox = (w - (maxX - minX) * s) / 2 - minX * s;
@@ -157,6 +157,15 @@ export function trackImage(t: TrackDef, w = 360, h = 200): string {
   g.lineWidth = 6;
   g.strokeStyle = th.road.rainbow ? '#FFFFFF' : th.road.base;
   g.stroke();
+  for (const branch of shortcuts) {
+    g.beginPath();
+    for (let i = 0; i < branch.n; i += 3) {
+      const x = branch.px[i] * s + ox, y = branch.pz[i] * s + oz;
+      if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+    }
+    g.lineWidth = 5; g.strokeStyle = '#253C56'; g.stroke();
+    g.lineWidth = 2.5; g.strokeStyle = '#FFE477'; g.stroke();
+  }
   g.fillStyle = '#fff';
   g.beginPath();
   g.arc(p.px[0] * s + ox, p.pz[0] * s + oz, 6, 0, Math.PI * 2);

@@ -1,5 +1,17 @@
 # Decisions
 
+- **Adventure course rebuild (2026-10-22):** all eight layouts now use rounded 3D routes,
+  60–110 m elevation ranges, 17 optional branches, suspension bridges, marked gaps and
+  exploration caverns. Cavern/volcano themes and glacier/ruins scenery have separate materials.
+  Four circuits contain real inverted magnetic loops. Loop progress uses physical arc length;
+  the vehicle, chase camera and mirror use the same full road frame. Normal hills maintain
+  contact; explicit ramp lips, gaps and player hops launch the kart.
+  Boost pads use a subdivided road-conforming mesh and static high-contrast chevrons,
+  avoiding bank clipping and a scrolling border. Turbo audio combines ignition, pentatonic
+  ascent and filtered wind, with a separate quiet wind bed while boost remains active.
+  `tools/qa/adventure-features.mjs` captures feature views and renders three booster WAVs
+  with peak/RMS checks; driving regression covers every fork and all 20 vehicles on t8.
+
 - **Track contact / readability (2026-10-22):** interpolate bank and width for contact queries,
   fit vehicle pitch/roll to the road plane, update wheel-instance ancestors before drawing,
   and reject contact through road undersides. Terrain triangles are capped below banked

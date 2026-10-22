@@ -160,25 +160,17 @@ export function fakeBoxTexture() {
 
 /** Boost pad: chevrons in rainbow colours (scrolls via texture offset). */
 export function boostPadTexture() {
-  const [c, g] = canvas(256, 256);
-  g.fillStyle = '#FFF6E9';
-  g.fillRect(0, 0, 256, 256);
-  const cols = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'];
+  const [c, g] = canvas(512, 512);
+  g.fillStyle = '#101C36'; g.fillRect(0, 0, 512, 512);
+  g.strokeStyle = '#FFF16A'; g.lineWidth = 22; g.strokeRect(15, 15, 482, 482);
+  g.strokeStyle = '#39F6EF'; g.lineWidth = 8; g.strokeRect(36, 36, 440, 440);
   for (let i = 0; i < 4; i++) {
-    g.fillStyle = cols[(i * 2) % cols.length];
-    const y = i * 64;
-    g.beginPath();
-    g.moveTo(30, y + 54);
-    g.lineTo(128, y + 10);
-    g.lineTo(226, y + 54);
-    g.lineTo(226, y + 30 + 34);
-    g.lineTo(128, y + 34);
-    g.lineTo(30, y + 64);
-    g.closePath();
-    g.fill();
+    const y = 76 + i * 96;
+    g.beginPath(); g.moveTo(78, y + 50); g.lineTo(256, y - 10); g.lineTo(434, y + 50);
+    g.lineTo(434, y + 82); g.lineTo(256, y + 22); g.lineTo(78, y + 82); g.closePath();
+    g.fillStyle = i % 2 ? '#FFFFFF' : '#CEFF43'; g.fill();
   }
-  const t = tex(c, true);
-  return t;
+  return tex(c, false);
 }
 
 export function cloudTexture() {

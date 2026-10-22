@@ -8,6 +8,11 @@ import { say } from '../audio/voice';
 import { CHARACTERS, type VoiceLine } from '../data/characters';
 import { loadFonts } from '../art/fonts';
 
+// Exposed only by this development audition page for waveform/peak QA.
+if (new URLSearchParams(location.search).has('qa')) {
+  Object.assign(window, { audioReview: { audio, recipes: SFX_RECIPES } });
+}
+
 /**
  * /dev/audio-review.html — §9.1-4 human approval step. Every sound grouped by in-game context with
  * ▶ play / ✅ approve / ❌ reject. Rejected entries show 2 alternative candidates to audition.

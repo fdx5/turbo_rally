@@ -19,6 +19,9 @@ export class EngineVoice {
   private pan: StereoPannerNode;
   private drift: GainNode;
   private driftSrc: AudioBufferSourceNode;
+  private turbo: GainNode;
+  private turboFilter: BiquadFilterNode;
+  private turboSrc: AudioBufferSourceNode;
   private p: (typeof PRESET)[EngineClass];
   alive = true;
   constructor(cls: EngineClass) {
@@ -56,9 +59,14 @@ export class EngineVoice {
     this.driftSrc.buffer = noise(ctx);
     this.driftSrc.loop = true;
     this.driftSrc.connect(bp).connect(this.drift).connect(this.pan);
+    this.turbo = ctx.createGain(); this.turbo.gain.value = 0;
+    this.turboFilter = ctx.createBiquadFilter(); this.turboFilter.type = 'bandpass'; this.turboFilter.Q.value = 0.7;
+    this.turboSrc = ctx.createBufferSource(); this.turboSrc.buffer = noise(ctx); this.turboSrc.loop = true;
+    this.turboSrc.connect(this.turboFilter).connect(this.turbo).connect(this.pan);
     const t = ctx.currentTime;
     for (const o of [this.o1, this.o2, this.trem]) o.start(t);
     this.driftSrc.start(t);
+    this.turboSrc.start(t);
   }
   update(speed01: number, throttle: number, vol: number, pan: number, drifting: boolean, boost: boolean) {
     const ctx = audio.ctx;
@@ -72,15 +80,19 @@ export class EngineVoice {
     this.g.gain.setTargetAtTime(this.p.vol * vol * (0.55 + 0.45 * throttle), t, 0.06);
     this.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), t, 0.05);
     this.drift.gain.setTargetAtTime(drifting ? 0.05 * vol : 0, t, 0.05);
+    this.turboFilter.frequency.setTargetAtTime(2200 + Math.min(1.5, speed01) * 2300, t, 0.12);
+    this.turbo.gain.setTargetAtTime(boost ? 0.055 * vol : 0, t, boost ? 0.07 : 0.16);
   }
   dispose() {
     this.alive = false;
     const ctx = audio.ctx;
     if (!ctx) return;
     this.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+    this.turbo.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
     setTimeout(() => {
       for (const o of [this.o1, this.o2, this.trem]) o.stop();
       this.driftSrc.stop();
+      this.turboSrc.stop();
       this.pan.disconnect();
     }, 400);
   }

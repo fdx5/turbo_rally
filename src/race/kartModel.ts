@@ -78,6 +78,10 @@ class Trail {
 const _v = new THREE.Vector3();
 const _r = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _basis = new THREE.Matrix4();
+const _forward = new THREE.Vector3();
+const _up = new THREE.Vector3();
+const _left = new THREE.Vector3();
 
 /** Visual kart: vehicle + seated character + status effect attachments. */
 export class KartModel {
@@ -169,7 +173,7 @@ export class KartModel {
     if (dy < -Math.PI) dy += Math.PI * 2;
     const yaw = b.pyaw + dy * alpha;
     this.root.position.set(x, y + 0.06, z);
-    this.root.rotation.y = yaw;
+    this.root.rotation.set(0, yaw, 0);
     // pitch / roll from the ground ribbon
     const pr = b.proj;
     const pose = groundPose(pr, yaw);
@@ -182,6 +186,17 @@ export class KartModel {
     this.inner.rotation.y = 0;
     // Drift/spin around the fitted road normal, preserving contact on banked corners.
     this.vehicle.root.rotation.y = b.driftVisual + b.spinAngle;
+    if (b.loopActive) {
+      const f = b.loopFrame;
+      _forward.set(f.fx, f.fy, f.fz);
+      _up.set(f.ux, f.uy, f.uz);
+      _left.crossVectors(_up, _forward).normalize();
+      _basis.makeBasis(_left, _up, _forward);
+      this.root.quaternion.setFromRotationMatrix(_basis);
+      this.root.position.set(x + f.ux * 0.06, y + f.uy * 0.06, z + f.uz * 0.06);
+      this.inner.rotation.set(0, 0, 0);
+      this.vehicle.root.rotation.y = 0;
+    }
     // scale: shrink / squash / star scale
     this.scaleTarget = (b.shrinkT > 0 ? 0.6 : 1) * (b.starScale > 1 && b.starT > 0 ? b.starScale : 1);
     this.sc += (this.scaleTarget - this.sc) * Math.min(1, dt * 8);

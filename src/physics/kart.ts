@@ -1,5 +1,5 @@
 import { clamp, wrapAngle } from '../core/math';
-import { Proj, Surface, type TrackPath } from '../tracks/path';
+import { Proj, Surface, roadFrame, type TrackPath } from '../tracks/path';
 import type { BoostPad } from '../tracks/trackBuilder';
 import { tuning, type Tuning } from '../data/statCurves';
 import type { Stats } from '../data/vehicles';
@@ -58,6 +58,8 @@ export class KartBody {
   vy = 0;
   vl = 0; // lateral slide velocity
   grounded = true;
+  loopActive = false;
+  loopFrame = roadFrame();
   airT = 0;
   landT = 0;
   // track tracking
@@ -159,6 +161,7 @@ export class KartBody {
     this.hints.fill(-1);
     this.hints[0] = i;
     this.onPath = 0;
+    this.loopActive = false;
     m.project(this.x, this.y, this.z, i, this.proj);
     this.y = this.proj.y;
     this.py = this.y;
@@ -232,6 +235,13 @@ export class KartBody {
       }
       return;
     }
+
+    const currentPath = world.paths[this.onPath];
+    if (currentPath.loopAt(this.onPath === 0 ? this.progressS : this.proj.s) && (this.grounded || this.loopActive)) {
+      this.stepLoop(dt, c, world, currentPath);
+      return;
+    }
+    this.loopActive = false;
 
     const can = this.controllable;
     let steer = can ? c.steer : 0;
@@ -353,6 +363,7 @@ export class KartBody {
     this.z += vz * dt;
 
     // --- vertical / ground
+    const previousPath = this.onPath, previousS = this.proj.s, previousT = this.proj.t;
     const ground = this.groundQuery(world);
     let g = G;
     for (const [a, b] of world.lowGravity) if (this.progressS >= a && this.progressS <= b) g = 11;
@@ -372,7 +383,9 @@ export class KartBody {
     const wasGrounded = this.grounded;
     if (ground !== null) {
       const slopeV = (ground - this.lastGroundY) / dt;
-      const snap = wasGrounded && this.hopT <= 0 && slopeV > -14 && this.vy <= 3 && ny - ground < 0.6;
+      const rampLip = previousPath === this.onPath && world.paths[this.onPath].ramps.some(r => previousS <= r.s1 && this.proj.s > r.s1 && previousT >= r.t0 && previousT <= r.t1);
+      // Ordinary hills use road adhesion. Only marked ramps, gaps and player hops launch.
+      const snap = wasGrounded && this.hopT <= 0 && !rampLip && ny - ground < 0.6;
       if (ny <= ground || snap) {
         if (!wasGrounded) {
           const big = this.airT > 0.45;
@@ -389,7 +402,7 @@ export class KartBody {
         this.airT = 0;
         this.trickReady = false;
       } else {
-        if (wasGrounded && slopeV < -14) {
+        if (wasGrounded && rampLip) {
           // launched off a ramp lip
           this.vy = Math.max(this.vy, 3.5);
           this.trickReady = true;
@@ -442,6 +455,41 @@ export class KartBody {
     else this.wrongWayT = Math.max(0, this.wrongWayT - dt * 2);
   }
 
+  private stepLoop(dt: number, c: KartControls, world: PhysWorld, path: TrackPath) {
+    this.loopActive = true;
+    this.drifting = false;
+    this.driftVisual = 0;
+    this.hopT = 0;
+    this.grounded = true;
+    this.vy = 0;
+    this.airT = 0;
+    this.offroad = false;
+    let s = this.onPath === 0 ? this.progressS : this.proj.s;
+    path.frameAt(s, this.loopFrame);
+    const top = this.topSpeed();
+    const target = c.brake > 0 ? 15 : Math.max(24, top);
+    this.speed += (target - this.speed) * Math.min(1, dt * 2.4);
+    s += Math.max(15, this.speed) * dt / this.loopFrame.metric;
+    this.proj.t = clamp(this.proj.t + c.steer * dt * 7, -this.proj.halfW + this.radius, this.proj.halfW - this.radius);
+    path.frameAt(s, this.loopFrame);
+    const f = this.loopFrame;
+    this.x = f.x + f.hx * this.proj.t;
+    this.y = f.y;
+    this.z = f.z + f.hz * this.proj.t;
+    this.proj.s = s;
+    this.hints[this.onPath] = path.idxAtS(s);
+    this.yaw = path.headingAt(s);
+    this.lastGroundY = this.y;
+    if (this.onPath === 0) this.progressS = s;
+    else this.progressS = (path.mainS0 + (path.mainS1 - path.mainS0) * s / path.length + world.main.length) % world.main.length;
+    if (!path.loopAt(s)) {
+      this.loopActive = false;
+      path.project(this.x, this.y, this.z, path.idxAtS(s), this.proj, 4);
+      this.y = this.proj.y;
+      this.lastGroundY = this.y;
+    }
+  }
+
   /** Find drivable ribbon under the kart, resolve walls. Returns ground height or null (void). */
   private groundQuery(world: PhysWorld): number | null {
     const paths = world.paths;
@@ -463,7 +511,7 @@ export class KartBody {
       const reachable = pr.y - this.y <= (this.grounded ? 1.2 : 0.6);
       const inside = pr.dist2 <= lim * lim && !pr.gap && reachable;
       if (k > 0 && (pr.s < 0.5 || pr.s > p.length - 0.5)) continue;
-      const score = inside ? Math.abs(pr.t) / lim + Math.abs(pr.y - this.y) * 0.02 : 10 + Math.sqrt(pr.dist2) - lim + Math.abs(pr.y - this.y);
+      const score = inside ? Math.abs(pr.t) / lim + Math.abs(pr.y - this.y) * 0.02 - (k === this.onPath ? 0.18 : 0) : 10 + Math.sqrt(pr.dist2) - lim + Math.abs(pr.y - this.y);
       if (score < bestScore) {
         bestScore = score;
         best = k;

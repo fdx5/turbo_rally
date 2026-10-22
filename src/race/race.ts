@@ -439,7 +439,6 @@ export class RaceSession {
     updateClouds(this.world.clouds, this.time, this.camera.position);
     (this.world.sky.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
     if (this.world.water) (this.world.water.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
-    this.world.padTex.offset.y = -this.time * 2.2;
     // shadow camera follows player
     const pp = this.player.model.root.position;
     const sd = new THREE.Vector3(...this.world.theme.sky.sunDir).normalize();
@@ -479,8 +478,15 @@ export class RaceSession {
     const top = this.player.model.vehicle.bp.height;
     this.rearCam.aspect = w / h;
     this.rearCam.updateProjectionMatrix();
+    this.rearCam.up.set(0, 1, 0);
     this.rearCam.position.set(p.x + fx * 0.6, p.y + top + 0.9, p.z + fz * 0.6);
     this.rearCam.lookAt(p.x - fx * 25, p.y + 1.0, p.z - fz * 25);
+    if (b.loopActive) {
+      const f = b.loopFrame;
+      this.rearCam.up.set(f.ux, f.uy, f.uz);
+      this.rearCam.position.set(p.x + f.fx * 0.6 + f.ux * (top + 0.9), p.y + f.fy * 0.6 + f.uy * (top + 0.9), p.z + f.fz * 0.6 + f.uz * (top + 0.9));
+      this.rearCam.lookAt(p.x - f.fx * 25 + f.ux, p.y - f.fy * 25 + f.uy, p.z - f.fz * 25 + f.uz);
+    }
     const H = window.innerHeight;
     const shadowAuto = r.shadowMap.autoUpdate;
     r.shadowMap.autoUpdate = false;
@@ -1038,11 +1044,11 @@ export class RaceSession {
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
-    for (let i = 0; i < m.n; i++) {
-      minX = Math.min(minX, m.px[i]);
-      maxX = Math.max(maxX, m.px[i]);
-      minZ = Math.min(minZ, m.pz[i]);
-      maxZ = Math.max(maxZ, m.pz[i]);
+    for (const path of this.world.paths) for (let i = 0; i < path.n; i++) {
+      minX = Math.min(minX, path.px[i]);
+      maxX = Math.max(maxX, path.px[i]);
+      minZ = Math.min(minZ, path.pz[i]);
+      maxZ = Math.max(maxZ, path.pz[i]);
     }
     const S = 440; // 2x backing store for a crisp map on hi-dpi screens
     const pad = 40;
@@ -1070,6 +1076,11 @@ export class RaceSession {
     for (const s of this.world.shortcuts) draw(s, 18, '#0E1630');
     for (const s of this.world.shortcuts) draw(s, 9, '#FFC93C');
     draw(m, 22, '#F4F7FC');
+    for (const loop of m.loops) {
+      const i = m.idxAtS((loop.s0 + loop.s1) / 2);
+      g.beginPath(); g.arc(m.px[i] * sx + this.mapXf.ox, m.pz[i] * sx + this.mapXf.oz, 15, 0, Math.PI * 2);
+      g.strokeStyle = '#38DCEF'; g.lineWidth = 6; g.stroke();
+    }
     // start/finish line: checkered bar across the road
     const x0 = m.px[0] * sx + this.mapXf.ox;
     const y0 = m.pz[0] * sx + this.mapXf.oz;

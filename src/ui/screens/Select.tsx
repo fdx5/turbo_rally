@@ -96,6 +96,9 @@ export function TrackSelect() {
                   </div>
                 </div>
                 <div style={{ fontSize: 20, marginTop: 8 }}>{t.name}</div>
+                <div style={{ fontSize: 12, color: '#24618A', margin: '5px 0', fontWeight: 700 }}>
+                  {Math.round(Math.min(...t.points.map(p => p[1])))}–{Math.round(Math.max(...t.points.map(p => p[1])))}m · {t.shortcuts.length + 1}개 경로 · 점프{t.loops?.length ? ' · 360° 루프' : ''}
+                </div>
                 <div style={{ fontSize: 13, color: '#4B5A78', minHeight: 34 }}>{t.desc}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                   <Stars n={st} />

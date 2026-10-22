@@ -22,7 +22,7 @@ describe('catalog', () => {
       const p = new TrackPath(t.points, true, t.width);
       console.log(t.id, Math.round(p.length));
       expect(p.length).toBeGreaterThan(900);
-      expect(p.length).toBeLessThan(1700);
+      expect(p.length).toBeLessThan(2400);
     }
   });
 });

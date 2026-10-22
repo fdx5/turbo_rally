@@ -36,6 +36,28 @@ const sparkle = (c: Ctx, t: number, n: number, out: AudioNode, base = 88) => {
   for (let i = 0; i < n; i++) bell(c, base + ((i * 5) % 12) + (i % 2) * 7, t + i * 0.045, 0.45, out, 'musicbox');
 };
 
+/** Tight ignition, major-pentatonic sparkle and a rising turbine, with room for the engine. */
+const turboLaunch = (c: Ctx, out: AudioNode, power = 1) => {
+  sweep(c, 'sine', 155, 62, 0, 0.12, 0.42 * power, out);
+  nburst(c, 0, 0.045, 3400, 0.6, 0.16, out, 'highpass');
+  const bus = filter(c, 'lowpass', 5200, 0.55, out);
+  sweep(c, 'triangle', 180, 1280, 0.015, 0.46, 0.32 * power, bus);
+  sweep(c, 'sawtooth', 183, 1296, 0.02, 0.4, 0.065 * power, bus);
+  [74, 81, 86, 93].forEach((m, i) => playNote(c, 'marimba', m, 0.035 + i * 0.048, 0.1, 0.85 * power, out));
+  bell(c, 88, 0.21, 0.38 * power, out);
+  const wind = c.createBiquadFilter();
+  wind.type = 'bandpass'; wind.Q.value = 0.65;
+  wind.frequency.setValueAtTime(850, 0);
+  wind.frequency.exponentialRampToValueAtTime(5700, 0.34);
+  wind.frequency.exponentialRampToValueAtTime(2400, 0.8);
+  const envelope = c.createGain();
+  envelope.gain.setValueAtTime(0.0001, 0);
+  envelope.gain.linearRampToValueAtTime(0.28 * power, 0.055);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, 0.88);
+  wind.connect(envelope).connect(out);
+  noiseSrc(c, 0, 0.9, wind);
+};
+
 export const SFX_RECIPES = {
   uiHover: { len: 0.12, vol: 0.35, label: '메뉴 호버', context: '메뉴', build: (c, o) => sweep(c, 'sine', 900, 1400, 0, 0.07, 0.6, o) },
   uiClick: { len: 0.2, vol: 0.6, label: '메뉴 클릭 "뽁"', context: '메뉴', build: (c, o) => { sweep(c, 'sine', 520, 1250, 0, 0.06, 0.8, o); sweep(c, 'triangle', 1250, 900, 0.05, 0.1, 0.4, o); } },
@@ -45,8 +67,8 @@ export const SFX_RECIPES = {
   roulette: { len: 1.3, vol: 0.55, label: '룰렛 "띠리리릭"', context: '아이템 획득', build: (c, o) => { for (let i = 0; i < 18; i++) { const t = i * 0.065; sweep(c, 'square', mtof(84 + ((i * 7) % 12)), mtof(84 + ((i * 7) % 12)) * 1.02, t, 0.04, 0.18, filter(c, 'lowpass', 5000, 0.5, o)); } } },
   itemGet: { len: 0.7, vol: 0.7, label: '아이템 결정 "띵!"', context: '아이템 획득', build: (c, o) => { bell(c, 88, 0, 1, o); bell(c, 95, 0.07, 0.9, o); bell(c, 100, 0.14, 0.7, o); } },
   coin: { len: 0.5, vol: 0.6, label: '별사탕 "짤랑"', context: '코인', build: (c, o) => { bell(c, 100, 0, 0.9, o); bell(c, 107, 0.06, 0.8, o); nburst(c, 0, 0.12, 9000, 2, 0.15, o); } },
-  boost: { len: 0.9, vol: 0.8, label: '부스트 "슈웅"', context: '부스트', build: (c, o) => { const g = nburst(c, 0, 0.8, 900, 1.2, 0.6, o); void g; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(500, 0); f.frequency.exponentialRampToValueAtTime(3500, 0.6); const g2 = c.createGain(); g2.gain.setValueAtTime(0.0001, 0); g2.gain.linearRampToValueAtTime(0.7, 0.08); g2.gain.exponentialRampToValueAtTime(0.0001, 0.85); g2.connect(o); f.connect(g2); noiseSrc(c, 0, 0.9, f); sweep(c, 'triangle', 220, 660, 0, 0.5, 0.35, o); } },
-  pad: { len: 0.7, vol: 0.75, label: '부스트 패드', context: '부스트', build: (c, o) => { sweep(c, 'triangle', 300, 1200, 0, 0.25, 0.6, o); bell(c, 91, 0.1, 0.6, o); bell(c, 96, 0.18, 0.6, o); } },
+  boost: { len: 1.25, vol: 0.8, label: '?? ??? ? ??? ???', context: '???', build: (c, o) => turboLaunch(c, o) },
+  pad: { len: 1.15, vol: 0.72, label: '?? ?? ? ?? ??', context: '???', build: (c, o) => turboLaunch(c, o, 0.82) },
   mt1: { len: 0.4, vol: 0.55, label: '미니터보 1단 "띠링"', context: '드리프트', build: (c, o) => bell(c, 91, 0, 1, o) },
   mt2: { len: 0.5, vol: 0.6, label: '미니터보 2단 "띠리링"', context: '드리프트', build: (c, o) => { bell(c, 91, 0, 1, o); bell(c, 95, 0.07, 1, o); } },
   mt3: { len: 0.6, vol: 0.65, label: '미니터보 3단 "띠리리링"', context: '드리프트', build: (c, o) => { bell(c, 91, 0, 1, o); bell(c, 95, 0.06, 1, o); bell(c, 98, 0.12, 1, o); sparkle(c, 0.18, 3, o, 100); } },
@@ -93,7 +115,7 @@ export const SFX_RECIPES = {
   freeze: { len: 0.7, vol: 0.55, label: '빙결 "쨍"', context: '피격', build: (c, o) => { [100, 107, 112].forEach((m, i) => bell(c, m, i * 0.03, 0.8, o, 'glock')); nburst(c, 0, 0.3, 8000, 2, 0.3, o); } },
   sleep: { len: 1.0, vol: 0.45, label: '쿨쿨', context: '피격', build: (c, o) => { sweep(c, 'sine', 300, 200, 0, 0.45, 0.4, o); sweep(c, 'sine', 300, 200, 0.5, 0.45, 0.4, o); } },
   teleport: { len: 0.8, vol: 0.6, label: '순간이동 "슝"', context: '아이템 사용', build: (c, o) => { sweep(c, 'sine', 200, 2400, 0, 0.35, 0.5, o); sweep(c, 'sine', 2400, 300, 0.35, 0.35, 0.4, o); } },
-  rocketStart: { len: 0.8, vol: 0.75, label: '로켓 스타트', context: '레이스 시작', build: (c, o) => { sweep(c, 'triangle', 200, 900, 0, 0.4, 0.6, o); nburst(c, 0, 0.6, 1500, 0.8, 0.5, o); } },
+  rocketStart: { len: 1.3, vol: 0.82, label: '?? ???', context: '??? ??', build: (c, o) => { turboLaunch(c, o, 1.15); playDrum(c, 'clap', 0.055, 0.35, o); } },
   overheat: { len: 0.8, vol: 0.6, label: '엔진 과열 "푸쉬쉬"', context: '레이스 시작', build: (c, o) => { nburst(c, 0, 0.7, 3000, 0.5, 0.6, o, 'highpass'); sweep(c, 'square', 400, 100, 0, 0.5, 0.2, filter(c, 'lowpass', 1500, 0.5, o)); } },
 } satisfies Record<string, Recipe>;
 export type SfxId = keyof typeof SFX_RECIPES;
