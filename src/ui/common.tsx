@@ -7,6 +7,7 @@ import { xpToNext } from '../../shared/economy';
 import { TRACKS, type TrackDef } from '../data/tracks';
 import { THEMES } from '../tracks/themes';
 import { buildPaths } from '../tracks/trackBuilder';
+import { Vector3 } from 'three';
 
 export const sfx = {
   click: () => audio.play('uiClick'),
@@ -50,7 +51,13 @@ export function LevelBar() {
     <div className="chip" title={`${xp}/${need} XP`}>
       <b style={{ color: '#2F6FDB' }}>Lv.{level}</b>
       <div style={{ width: 90, height: 10, background: '#E3ECF7', borderRadius: 6, overflow: 'hidden' }}>
-        <div style={{ width: `${(xp / need) * 100}%`, height: '100%', background: 'linear-gradient(90deg,#BFDDFF,#2F6FDB)' }} />
+        <div
+          style={{
+            width: `${(xp / need) * 100}%`,
+            height: '100%',
+            background: 'linear-gradient(90deg,#BFDDFF,#2F6FDB)',
+          }}
+        />
       </div>
     </div>
   );
@@ -76,10 +83,22 @@ export function TopBar({ title, right, onBack }: { title: string; right?: ReactN
     </div>
   );
 }
-export function Modal({ children, onClose, wide }: { children: ReactNode; onClose?: () => void; wide?: boolean }) {
+export function Modal({
+  children,
+  onClose,
+  wide,
+}: {
+  children: ReactNode;
+  onClose?: () => void;
+  wide?: boolean;
+}) {
   return (
     <div className="modal-bg" onClick={() => onClose?.()}>
-      <div className="panel modal pop-in" style={wide ? { width: 'min(760px, 94vw)' } : undefined} onClick={(e) => e.stopPropagation()}>
+      <div
+        className="panel modal pop-in"
+        style={wide ? { width: 'min(760px, 94vw)' } : undefined}
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
@@ -121,24 +140,28 @@ export function trackImage(t: TrackDef, w = 360, h = 200): string {
     g.fill();
   }
   const { main: p, shortcuts } = buildPaths(t);
+  const mapPoint = new Vector3();
   let minX = Infinity;
   let maxX = -Infinity;
   let minZ = Infinity;
   let maxZ = -Infinity;
-  for (const path of [p, ...shortcuts]) for (let i = 0; i < path.n; i++) {
-    minX = Math.min(minX, path.px[i]);
-    maxX = Math.max(maxX, path.px[i]);
-    minZ = Math.min(minZ, path.pz[i]);
-    maxZ = Math.max(maxZ, path.pz[i]);
-  }
+  for (const path of [p, ...shortcuts])
+    for (let i = 0; i < path.n; i++) {
+      path.pointAt(i * path.ds, 0, mapPoint);
+      minX = Math.min(minX, mapPoint.x);
+      maxX = Math.max(maxX, mapPoint.x);
+      minZ = Math.min(minZ, mapPoint.z);
+      maxZ = Math.max(maxZ, mapPoint.z);
+    }
   const s = Math.min((w - 40) / (maxX - minX), (h - 40) / (maxZ - minZ));
   const ox = (w - (maxX - minX) * s) / 2 - minX * s;
   const oz = (h - (maxZ - minZ) * s) / 2 - minZ * s;
   const path = () => {
     g.beginPath();
     for (let i = 0; i < p.n; i += 3) {
-      const x = p.px[i] * s + ox;
-      const y = p.pz[i] * s + oz;
+      p.pointAt(i * p.ds, 0, mapPoint);
+      const x = mapPoint.x * s + ox;
+      const y = mapPoint.z * s + oz;
       if (i === 0) g.moveTo(x, y);
       else g.lineTo(x, y);
     }
@@ -160,11 +183,17 @@ export function trackImage(t: TrackDef, w = 360, h = 200): string {
   for (const branch of shortcuts) {
     g.beginPath();
     for (let i = 0; i < branch.n; i += 3) {
-      const x = branch.px[i] * s + ox, y = branch.pz[i] * s + oz;
-      if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      const x = branch.px[i] * s + ox,
+        y = branch.pz[i] * s + oz;
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
     }
-    g.lineWidth = 5; g.strokeStyle = '#253C56'; g.stroke();
-    g.lineWidth = 2.5; g.strokeStyle = '#FFE477'; g.stroke();
+    g.lineWidth = 5;
+    g.strokeStyle = '#253C56';
+    g.stroke();
+    g.lineWidth = 2.5;
+    g.strokeStyle = '#FFE477';
+    g.stroke();
   }
   g.fillStyle = '#fff';
   g.beginPath();

@@ -26,7 +26,16 @@ export function ModeSelect() {
   return (
     <div className="screen">
       <TopBar title="난이도 선택" />
-      <div style={{ flex: 1, display: 'flex', gap: 18, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          gap: 18,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
         {cards.map((c) => (
           <div
             key={c.d}
@@ -57,7 +66,18 @@ export function TrackSelect() {
   useEffect(() => getShell().showroom.setMode('track'), []);
   return (
     <div className="screen">
-      <TopBar title={mode === 'timeattack' ? '트랙 선택 · 타임어택' : mode === 'practice' ? '트랙 선택 · 연습' : '트랙 선택'} />
+      <TopBar
+        title={
+          mode === 'timeattack'
+            ? '트랙 선택 · 타임어택'
+            : mode === 'practice'
+              ? '트랙 선택 · 연습'
+              : '트랙 선택'
+        }
+      />
+      <div style={{ color: '#365575', marginTop: 8, fontSize: 14 }}>
+        {TRACKS.length}개의 탐험 코스 · 각기 다른 풍경과 여러 갈래의 입체 도로
+      </div>
       <div className="scroll" style={{ flex: 1, marginTop: 12 }}>
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
           {TRACKS.map((t) => {
@@ -82,28 +102,64 @@ export function TrackSelect() {
                 }}
               >
                 <div style={{ position: 'relative' }}>
-                  <img src={trackImage(t)} style={{ width: '100%', borderRadius: 14, display: 'block', filter: locked ? 'brightness(0.55) saturate(0.4)' : undefined }} alt="" />
+                  <img
+                    src={trackImage(t)}
+                    style={{
+                      width: '100%',
+                      borderRadius: 14,
+                      display: 'block',
+                      filter: locked ? 'brightness(0.55) saturate(0.4)' : undefined,
+                    }}
+                    alt=""
+                  />
                   {locked && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#fff', textAlign: 'center', fontSize: 15, textShadow: '0 2px 4px #1E2B4A' }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: '#fff',
+                        textAlign: 'center',
+                        fontSize: 15,
+                        textShadow: '0 2px 4px #1E2B4A',
+                      }}
+                    >
                       <div>
                         <div style={{ fontSize: 40 }}>🔒</div>
                         {memberLock ? '회원 전용' : `트랙 ${t.no - 1}에서 3등 이내 입상 시 오픈!`}
                       </div>
                     </div>
                   )}
-                  <div className="chip" style={{ position: 'absolute', left: 8, top: 8, padding: '2px 10px' }}>
+                  <div
+                    className="chip"
+                    style={{ position: 'absolute', left: 8, top: 8, padding: '2px 10px' }}
+                  >
                     {t.no}
                   </div>
                 </div>
                 <div style={{ fontSize: 20, marginTop: 8 }}>{t.name}</div>
                 <div style={{ fontSize: 12, color: '#24618A', margin: '5px 0', fontWeight: 700 }}>
-                  {Math.round(Math.min(...t.points.map(p => p[1])))}–{Math.round(Math.max(...t.points.map(p => p[1])))}m · {t.shortcuts.length + 1}개 경로 · 점프{t.loops?.length ? ' · 360° 루프' : ''}
+                  {Math.round(Math.min(...t.points.map((p) => p[1])))}–
+                  {Math.round(Math.max(...t.points.map((p) => p[1])))}m · {t.shortcuts.length + 1}개 경로 ·
+                  급커브 · 급경사 · 점프
                 </div>
                 <div style={{ fontSize: 13, color: '#4B5A78', minHeight: 34 }}>{t.desc}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: 4,
+                  }}
+                >
                   <Stars n={st} />
                   <span style={{ fontSize: 13 }}>
-                    {mode === 'timeattack' ? `${medal === 'gold' ? '🥇' : medal === 'silver' ? '🥈' : medal === 'bronze' ? '🥉' : ''} ${ta ? fmtMs(ta.ms) : '기록 없음'}` : profile.bestRace[t.id] ? `최고 ${profile.bestRace[t.id].pos}위` : ''}
+                    {mode === 'timeattack'
+                      ? `${medal === 'gold' ? '🥇' : medal === 'silver' ? '🥈' : medal === 'bronze' ? '🥉' : ''} ${ta ? fmtMs(ta.ms) : '기록 없음'}`
+                      : profile.bestRace[t.id]
+                        ? `최고 ${profile.bestRace[t.id].pos}위`
+                        : ''}
                   </span>
                 </div>
                 {mode === 'timeattack' && (
@@ -141,7 +197,10 @@ export function CharacterSelect() {
     <div className="screen">
       <TopBar title="캐릭터 선택" />
       <div className="spacer" />
-      <div className="panel" style={{ alignSelf: 'center', padding: '10px 18px', textAlign: 'center', marginBottom: 10 }}>
+      <div
+        className="panel"
+        style={{ alignSelf: 'center', padding: '10px 18px', textAlign: 'center', marginBottom: 10 }}
+      >
         <div style={{ fontSize: 30 }}>
           {c.name} <small style={{ fontSize: 16, color: '#2F6FDB' }}>{c.motif}</small>
         </div>
@@ -156,8 +215,17 @@ export function CharacterSelect() {
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
         {CHARACTERS.map((ch) => (
-          <div key={ch.id} className={`card ${sel === ch.id ? 'sel' : ''}`} style={{ padding: 6, width: 86, textAlign: 'center' }} onClick={() => pick(ch.id)}>
-            <img src={portrait(ch.id, profile.equipment[ch.id] ?? {}, 120)} style={{ width: 70, height: 70 }} alt="" />
+          <div
+            key={ch.id}
+            className={`card ${sel === ch.id ? 'sel' : ''}`}
+            style={{ padding: 6, width: 86, textAlign: 'center' }}
+            onClick={() => pick(ch.id)}
+          >
+            <img
+              src={portrait(ch.id, profile.equipment[ch.id] ?? {}, 120)}
+              style={{ width: 70, height: 70 }}
+              alt=""
+            />
             <div style={{ fontSize: 15 }}>{ch.name}</div>
           </div>
         ))}
@@ -186,12 +254,31 @@ function Radar({ stats, base }: { stats: Record<StatKey, number>; base: Record<S
       {[2, 4, 6, 8, 10].map((r) => (
         <polygon key={r} points={STAT_KEYS.map((_, i) => pt(i, r)).join(' ')} fill="none" stroke="#D5E2F2" />
       ))}
-      <polygon points={STAT_KEYS.map((k, i) => pt(i, base[k])).join(' ')} fill="rgba(162,210,255,0.35)" stroke="#a2d2ff" strokeWidth="2" />
-      <polygon points={STAT_KEYS.map((k, i) => pt(i, stats[k])).join(' ')} fill="rgba(255,143,184,0.45)" stroke="#FF6B3D" strokeWidth="3" style={{ transition: 'all .4s' }} />
+      <polygon
+        points={STAT_KEYS.map((k, i) => pt(i, base[k])).join(' ')}
+        fill="rgba(162,210,255,0.35)"
+        stroke="#a2d2ff"
+        strokeWidth="2"
+      />
+      <polygon
+        points={STAT_KEYS.map((k, i) => pt(i, stats[k])).join(' ')}
+        fill="rgba(255,143,184,0.45)"
+        stroke="#FF6B3D"
+        strokeWidth="3"
+        style={{ transition: 'all .4s' }}
+      />
       {STAT_KEYS.map((k, i) => {
         const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
         return (
-          <text key={k} x={Math.cos(a) * 82} y={Math.sin(a) * 82} fontSize="11" textAnchor="middle" dominantBaseline="middle" fill="#4B5A78">
+          <text
+            key={k}
+            x={Math.cos(a) * 82}
+            y={Math.sin(a) * 82}
+            fontSize="11"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#4B5A78"
+          >
             {STAT_LABEL[k]}
           </text>
         );
@@ -248,7 +335,16 @@ export function VehicleSelect() {
           </div>
         </div>
         <div className="spacer" />
-        <div className="panel" style={{ width: 'min(380px, 40vw)', padding: 16, alignSelf: 'flex-start', maxHeight: '100%', overflowY: 'auto' }}>
+        <div
+          className="panel"
+          style={{
+            width: 'min(380px, 40vw)',
+            padding: 16,
+            alignSelf: 'flex-start',
+            maxHeight: '100%',
+            overflowY: 'auto',
+          }}
+        >
           <div style={{ fontSize: 24 }}>
             {String(v.no).padStart(2, '0')}. {v.name}
           </div>
@@ -261,10 +357,29 @@ export function VehicleSelect() {
                 return (
                   <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                     <span style={{ width: 52 }}>{STAT_LABEL[k]}</span>
-                    <div style={{ flex: 1, height: 10, background: '#E8EFF8', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ width: `${st[k] * 10}%`, height: '100%', background: d > 0 ? '#7bd389' : d < 0 ? '#ff8fa3' : '#BFDDFF', transition: 'width .4s, background .4s' }} />
+                    <div
+                      style={{
+                        flex: 1,
+                        height: 10,
+                        background: '#E8EFF8',
+                        borderRadius: 6,
+                        overflow: 'hidden',
+                        position: 'relative',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${st[k] * 10}%`,
+                          height: '100%',
+                          background: d > 0 ? '#7bd389' : d < 0 ? '#ff8fa3' : '#BFDDFF',
+                          transition: 'width .4s, background .4s',
+                        }}
+                      />
                     </div>
-                    <b className="num" style={{ width: 34, color: d > 0 ? '#3cb36a' : d < 0 ? '#E8412C' : undefined }}>
+                    <b
+                      className="num"
+                      style={{ width: 34, color: d > 0 ? '#3cb36a' : d < 0 ? '#E8412C' : undefined }}
+                    >
                       {st[k]}
                       {d ? <small>{d > 0 ? `+${d}` : d}</small> : null}
                     </b>

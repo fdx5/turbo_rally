@@ -8,8 +8,12 @@ export function roundRoute(points: Vec3T[], closed: boolean, passes = 2): Vec3T[
     const next: Vec3T[] = closed ? [] : [result[0]];
     const count = closed ? result.length : result.length - 1;
     for (let i = 0; i < count; i++) {
-      const a = result[i], b = result[(i + 1) % result.length];
-      next.push(a.map((v, k) => v * 0.75 + b[k] * 0.25) as Vec3T, a.map((v, k) => v * 0.25 + b[k] * 0.75) as Vec3T);
+      const a = result[i],
+        b = result[(i + 1) % result.length];
+      next.push(
+        a.map((v, k) => v * 0.75 + b[k] * 0.25) as Vec3T,
+        a.map((v, k) => v * 0.25 + b[k] * 0.75) as Vec3T,
+      );
     }
     if (!closed) next.push(result[result.length - 1]);
     result = next;
@@ -43,13 +47,33 @@ export interface ZoneRange {
 }
 
 export interface RoadFrame {
-  x: number; y: number; z: number;
-  fx: number; fy: number; fz: number;
-  hx: number; hz: number;
-  ux: number; uy: number; uz: number;
+  x: number;
+  y: number;
+  z: number;
+  fx: number;
+  fy: number;
+  fz: number;
+  hx: number;
+  hz: number;
+  ux: number;
+  uy: number;
+  uz: number;
   metric: number;
 }
-export const roadFrame = (): RoadFrame => ({ x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: 1, hx: -1, hz: 0, ux: 0, uy: 1, uz: 0, metric: 1 });
+export const roadFrame = (): RoadFrame => ({
+  x: 0,
+  y: 0,
+  z: 0,
+  fx: 0,
+  fy: 0,
+  fz: 1,
+  hx: -1,
+  hz: 0,
+  ux: 0,
+  uy: 1,
+  uz: 0,
+  metric: 1,
+});
 
 /** Result of projecting a world position onto a path. Reused to avoid GC in the game loop. */
 export class Proj {
@@ -222,7 +246,10 @@ export class TrackPath {
       const f = frameScratch;
       return out.set(f.x + f.hx * t + f.ux * lift, f.y + f.uy * lift, f.z + f.hz * t + f.uz * lift);
     }
-    const fi = (this.closed ? ((s % this.length) + this.length) % this.length : Math.max(0, Math.min(this.length, s))) / this.ds;
+    const fi =
+      (this.closed
+        ? ((s % this.length) + this.length) % this.length
+        : Math.max(0, Math.min(this.length, s))) / this.ds;
     const i0 = this.wrap(Math.floor(fi));
     const i1 = this.wrap(i0 + 1);
     const k = fi - Math.floor(fi);
@@ -238,14 +265,16 @@ export class TrackPath {
 
   loopAt(s: number) {
     if (this.closed) s = ((s % this.length) + this.length) % this.length;
-    return this.loops.find(loop => s >= loop.s0 && s < loop.s1);
+    return this.loops.find((loop) => s >= loop.s0 && s < loop.s1);
   }
 
   /** Magnetic loop frame. Progress remains monotonic even while the road is upside down. */
   frameAt(s: number, out: RoadFrame): RoadFrame {
     if (this.closed) s = ((s % this.length) + this.length) % this.length;
     const fi = Math.max(0, Math.min(this.length, s)) / this.ds;
-    const a = this.wrap(Math.floor(fi)), b = this.wrap(a + 1), k = fi - Math.floor(fi);
+    const a = this.wrap(Math.floor(fi)),
+      b = this.wrap(a + 1),
+      k = fi - Math.floor(fi);
     out.x = this.px[a] + (this.px[b] - this.px[a]) * k;
     out.y = this.py[a] + (this.py[b] - this.py[a]) * k;
     out.z = this.pz[a] + (this.pz[b] - this.pz[a]) * k;
@@ -253,12 +282,14 @@ export class TrackPath {
     let fy = this.fy[a] + (this.fy[b] - this.fy[a]) * k;
     let fz = this.fz[a] + (this.fz[b] - this.fz[a]) * k;
     const horizontal = Math.hypot(fx, fz) || 1;
-    const dx = fx / horizontal, dz = fz / horizontal;
-    out.hx = -dz; out.hz = dx;
+    const dx = fx / horizontal,
+      dz = fz / horizontal;
+    out.hx = -dz;
+    out.hz = dx;
     const loop = this.loopAt(s);
     if (loop) {
-      const angle = (s - loop.s0) / (loop.s1 - loop.s0) * Math.PI * 2;
-      const bend = loop.radius * Math.PI * 2 / (loop.s1 - loop.s0);
+      const angle = ((s - loop.s0) / (loop.s1 - loop.s0)) * Math.PI * 2;
+      const bend = (loop.radius * Math.PI * 2) / (loop.s1 - loop.s0);
       out.x += dx * loop.radius * Math.sin(angle);
       out.z += dz * loop.radius * Math.sin(angle);
       out.y += loop.radius * (1 - Math.cos(angle));
@@ -267,7 +298,9 @@ export class TrackPath {
       fy = fy / horizontal + bend * Math.sin(angle);
     }
     out.metric = Math.hypot(fx, fy, fz) || 1;
-    out.fx = fx / out.metric; out.fy = fy / out.metric; out.fz = fz / out.metric;
+    out.fx = fx / out.metric;
+    out.fy = fy / out.metric;
+    out.fz = fz / out.metric;
     out.ux = -out.hz * out.fy;
     out.uy = out.hz * out.fx - out.hx * out.fz;
     out.uz = out.hx * out.fy;
@@ -298,7 +331,7 @@ export class TrackPath {
   }
 
   /** Project world (x,y,z) near hint index. Writes into out. */
-  project(x: number, y: number, z: number, hint: number, out: Proj, window = 40): Proj {
+  project(x: number, y: number, z: number, hint: number, out: Proj, window = 40, heightTolerance = 3): Proj {
     const n = this.n;
     let best = -1;
     let bestD = Infinity;
@@ -308,7 +341,7 @@ export class TrackPath {
         const dz = z - this.pz[i];
         const t = dx * this.hx[i] + dz * this.hz[i];
         const surfaceY = this.py[i] + t * this.bankTan[i] + this.rampHeight(i * this.ds, t);
-        const dy = Math.max(0, Math.abs(y - surfaceY) - 3) * 2;
+        const dy = Math.max(0, Math.abs(y - surfaceY) - heightTolerance) * 2;
         const d = dx * dx + dz * dz + dy * dy;
         if (d < bestD) {
           bestD = d;
@@ -325,7 +358,7 @@ export class TrackPath {
       const dz = z - this.pz[i];
       const t = dx * this.hx[i] + dz * this.hz[i];
       const surfaceY = this.py[i] + t * this.bankTan[i] + this.rampHeight(i * this.ds, t);
-      const dy = Math.max(0, Math.abs(y - surfaceY) - 3) * 1.5;
+      const dy = Math.max(0, Math.abs(y - surfaceY) - heightTolerance) * 1.5;
       const d = dx * dx + dz * dz + dy * dy;
       if (d < bestD) {
         bestD = d;
@@ -334,31 +367,53 @@ export class TrackPath {
     }
     // Invert the same bilinear ribbon used by pointAt/rendering. Centre-line-only
     // projection shifts contact along steep banked hairpins and can bury a wheel.
-    let i0 = best, i1 = this.wrap(best + 1), f = 0, residual = Infinity;
+    let i0 = best,
+      i1 = this.wrap(best + 1),
+      f = 0,
+      residual = Infinity;
     for (let offset = -3; offset <= 2; offset++) {
-      const a = this.wrap(best + offset), b = this.wrap(a + 1);
+      const a = this.wrap(best + offset),
+        b = this.wrap(a + 1);
       if (a === b) continue;
-      const ax = this.px[b] - this.px[a], az = this.pz[b] - this.pz[a];
-      const dhx = this.hx[b] - this.hx[a], dhz = this.hz[b] - this.hz[a];
-      let q = Math.max(0, Math.min(1, ((x - this.px[a]) * ax + (z - this.pz[a]) * az) / (ax * ax + az * az || 1)));
+      const ax = this.px[b] - this.px[a],
+        az = this.pz[b] - this.pz[a];
+      const dhx = this.hx[b] - this.hx[a],
+        dhz = this.hz[b] - this.hz[a];
+      let q = Math.max(
+        0,
+        Math.min(1, ((x - this.px[a]) * ax + (z - this.pz[a]) * az) / (ax * ax + az * az || 1)),
+      );
       let lateral = (x - this.px[a] - ax * q) * this.hx[a] + (z - this.pz[a] - az * q) * this.hz[a];
       for (let iteration = 0; iteration < 4; iteration++) {
-        const hx = this.hx[a] + dhx * q, hz = this.hz[a] + dhz * q;
-        const dx = ax + dhx * lateral, dz = az + dhz * lateral;
+        const hx = this.hx[a] + dhx * q,
+          hz = this.hz[a] + dhz * q;
+        const dx = ax + dhx * lateral,
+          dz = az + dhz * lateral;
         const rx = this.px[a] + ax * q + hx * lateral - x;
         const rz = this.pz[a] + az * q + hz * lateral - z;
         const determinant = dx * hz - dz * hx;
         if (Math.abs(determinant) < 0.00001) break;
         q = Math.max(0, Math.min(1, q - (rx * hz - rz * hx) / determinant));
-        const nhx = this.hx[a] + dhx * q, nhz = this.hz[a] + dhz * q;
-        lateral = ((x - this.px[a] - ax * q) * nhx + (z - this.pz[a] - az * q) * nhz) / (nhx * nhx + nhz * nhz || 1);
+        const nhx = this.hx[a] + dhx * q,
+          nhz = this.hz[a] + dhz * q;
+        lateral =
+          ((x - this.px[a] - ax * q) * nhx + (z - this.pz[a] - az * q) * nhz) / (nhx * nhx + nhz * nhz || 1);
       }
       const ex = this.px[a] + ax * q + (this.hx[a] + dhx * q) * lateral - x;
       const ez = this.pz[a] + az * q + (this.hz[a] + dhz * q) * lateral - z;
-      const surfaceY = this.py[a] + (this.py[b] - this.py[a]) * q + lateral * (this.bankTan[a] + (this.bankTan[b] - this.bankTan[a]) * q) + this.rampHeight((a + q) * this.ds, lateral);
-      const dy = Math.max(0, Math.abs(y - surfaceY) - 3);
+      const surfaceY =
+        this.py[a] +
+        (this.py[b] - this.py[a]) * q +
+        lateral * (this.bankTan[a] + (this.bankTan[b] - this.bankTan[a]) * q) +
+        this.rampHeight((a + q) * this.ds, lateral);
+      const dy = Math.max(0, Math.abs(y - surfaceY) - heightTolerance);
       const score = ex * ex + ez * ez + dy * dy + Math.abs(surfaceY - y) * 0.0000001;
-      if (score < residual) { residual = score; i0 = a; i1 = b; f = q; }
+      if (score < residual) {
+        residual = score;
+        i0 = a;
+        i1 = b;
+        f = q;
+      }
     }
     const ax = this.px[i1] - this.px[i0];
     const az = this.pz[i1] - this.pz[i0];
@@ -382,11 +437,11 @@ export class TrackPath {
     out.dist2 = (x - cx) ** 2 + (z - cz) ** 2;
     out.bankTan = this.bankTan[i0] + (this.bankTan[i1] - this.bankTan[i0]) * f;
     out.y = cy + out.t * out.bankTan + this.rampHeight(out.s, out.t);
-    grade += out.t * (this.bankTan[i1] - this.bankTan[i0]) / horizontal;
+    grade += (out.t * (this.bankTan[i1] - this.bankTan[i0])) / horizontal;
     for (const ramp of this.ramps) {
       if (out.s >= ramp.s0 && out.s <= ramp.s1 && out.t >= ramp.t0 && out.t <= ramp.t1) {
         const k = (out.s - ramp.s0) / (ramp.s1 - ramp.s0);
-        grade += ramp.h / (ramp.s1 - ramp.s0) * (k < 0.3 ? 2 * k / 0.3 : 1);
+        grade += (ramp.h / (ramp.s1 - ramp.s0)) * (k < 0.3 ? (2 * k) / 0.3 : 1);
         break;
       }
     }

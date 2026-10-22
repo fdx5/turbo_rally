@@ -31,6 +31,8 @@ import { sharedTime } from '../art/materials';
 import type { SfxId } from '../audio/sfx';
 import { globalRng } from '../core/rng';
 import { useSettings } from '../core/settings';
+import { KartContacts } from '../physics/contacts';
+import { recordReplayFrame, sampleReplay } from './replay';
 
 export interface Entrant {
   charId: CharId;
@@ -60,7 +62,15 @@ export interface RaceResult {
   bestLapMs: number;
   lapTimes: number[];
   coins: number;
-  entrants: { slot: number; charId: CharId; vehicleId: string; name: string; isPlayer: boolean; position: number; totalMs: number }[];
+  entrants: {
+    slot: number;
+    charId: CharId;
+    vehicleId: string;
+    name: string;
+    isPlayer: boolean;
+    position: number;
+    totalMs: number;
+  }[];
   itemStats: Record<string, ItemStat>;
   mt3: number;
   hitsDealt: number;
@@ -71,7 +81,16 @@ export interface RaceResult {
 }
 
 const STEP = 1 / 120;
-const CHAR_COLORS: Record<string, string> = { momo: '#FF8FB8', mungchi: '#C89B7B', piyo: '#FFD43B', lulu: '#B9A6E8', toto: '#F4A261', piko: '#5AA9FF', kkang: '#6CC57C', hana: '#FF8A3D' };
+const CHAR_COLORS: Record<string, string> = {
+  momo: '#FF8FB8',
+  mungchi: '#C89B7B',
+  piyo: '#FFD43B',
+  lulu: '#B9A6E8',
+  toto: '#F4A261',
+  piko: '#5AA9FF',
+  kkang: '#6CC57C',
+  hana: '#FF8A3D',
+};
 
 export class RaceSession {
   cfg: RaceConfig;
@@ -103,6 +122,7 @@ export class RaceSession {
   private finalLapShown = false;
   private dangers: { x: number; z: number; r: number }[] = [];
   private wrongWayBeep = 0;
+  private contacts = new KartContacts();
   private ghostRec: number[] = [];
   private ghostT = 0;
   private ghost: { model: KartModel; data: Float32Array } | null = null;
@@ -117,7 +137,10 @@ export class RaceSession {
   private ambientT = 0;
   private lastCountdown = '';
 
-  constructor(cfg: RaceConfig, private R: Renderer) {
+  constructor(
+    cfg: RaceConfig,
+    private R: Renderer,
+  ) {
     this.cfg = cfg;
     const def = TRACK_BY_ID[cfg.trackId];
     const q = R.def;
@@ -125,7 +148,15 @@ export class RaceSession {
     this.scene.add(this.world.group);
     const th = this.world.theme;
     this.scene.fog = new THREE.Fog(th.fog.color, th.fog.near, th.fog.far);
-    const L = makeLights(th.light.sun, th.light.sunI, th.light.hemiSky, th.light.hemiGround, th.light.hemiI, th.light.amb, q.shadow);
+    const L = makeLights(
+      th.light.sun,
+      th.light.sunI,
+      th.light.hemiSky,
+      th.light.hemiGround,
+      th.light.hemiI,
+      th.light.amb,
+      q.shadow,
+    );
     this.sun = L.sun;
     this.scene.add(L.group);
     this.boxes = new ItemBoxes(def, this.world.main);
@@ -139,13 +170,18 @@ export class RaceSession {
 
     // ---- entrants & grid
     const entrants: Entrant[] = cfg.mode === 'race' ? [cfg.player, ...cfg.ai] : [cfg.player];
-    const order = cfg.gridOrder && cfg.gridOrder.length === entrants.length ? cfg.gridOrder : entrants.map((_, i) => i);
+    const order =
+      cfg.gridOrder && cfg.gridOrder.length === entrants.length ? cfg.gridOrder : entrants.map((_, i) => i);
     entrants.forEach((e, slot) => {
       const ch = CHAR_BY_ID[e.charId];
       const st = finalStats(e.vehicleId, e.charId);
       const body = new KartBody(st, ch, this.world.paths.length);
       const isPlayer = slot === 0;
-      const model = new KartModel(e.vehicleId, e.charId, e.loadout, { outline: true, decalScale: isPlayer ? 1 : 0.75, pooledWheels: true });
+      const model = new KartModel(e.vehicleId, e.charId, e.loadout, {
+        outline: true,
+        decalScale: isPlayer ? 1 : 0.75,
+        pooledWheels: true,
+      });
       model.addToScene(this.scene);
       const r: Racer = {
         slot,
@@ -228,7 +264,12 @@ export class RaceSession {
     if (cfg.mode === 'timeattack') this.player.items = ['sugar3'];
     if (cfg.mode === 'timeattack') this.items.prepareHeld(this.player);
     if (cfg.ghost && cfg.ghost.length > 8) {
-      const gm = new KartModel(cfg.player.vehicleId, cfg.player.charId, {}, { outline: false, decalScale: 0.5 });
+      const gm = new KartModel(
+        cfg.player.vehicleId,
+        cfg.player.charId,
+        {},
+        { outline: false, decalScale: 0.5 },
+      );
       gm.root.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh) {
@@ -270,7 +311,8 @@ export class RaceSession {
     music.play(this.world.def.id, 1.5);
     this.ambience.start(this.world.theme.ambience);
     for (const r of this.racers) {
-      if (r.isPlayer || this.racers.indexOf(r) < 4) this.engines.set(r, new EngineVoice(VEHICLE_BY_ID[r.vehicleId].engine));
+      if (r.isPlayer || this.racers.indexOf(r) < 4)
+        this.engines.set(r, new EngineVoice(VEHICLE_BY_ID[r.vehicleId].engine));
     }
     this.phase = 'intro';
     this.phaseT = 0;
@@ -349,7 +391,9 @@ export class RaceSession {
       }
       // rocket start window: "2" is shown during [1,2)
       for (const r of this.racers) {
-        const pressing = r.isPlayer ? inp.throttle > 0 : r.ai && this.phaseT > 1.2 + (r.slot % 3) * 0.25 && globalRng.chance(0.5);
+        const pressing = r.isPlayer
+          ? inp.throttle > 0
+          : r.ai && this.phaseT > 1.2 + (r.slot % 3) * 0.25 && globalRng.chance(0.5);
         if (pressing && r.rocketPress < 0) r.rocketPress = this.phaseT;
         if (!pressing && r.isPlayer && this.phaseT < 2) r.rocketPress = -1;
       }
@@ -438,7 +482,8 @@ export class RaceSession {
     this.fx.update(this.time);
     updateClouds(this.world.clouds, this.time, this.camera.position);
     (this.world.sky.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
-    if (this.world.water) (this.world.water.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
+    if (this.world.water)
+      (this.world.water.material as THREE.ShaderMaterial).uniforms.uTime.value = this.time;
     // shadow camera follows player
     const pp = this.player.model.root.position;
     const sd = new THREE.Vector3(...this.world.theme.sky.sunDir).normalize();
@@ -446,7 +491,8 @@ export class RaceSession {
     this.sun.target.position.copy(pp);
     // chunk outline LOD
     const far = this.R.def.farOutline * 3;
-    for (const c of this.world.chunks) if (c.outline) c.outline.visible = c.centre.distanceTo(this.camera.position) < far + 60;
+    for (const c of this.world.chunks)
+      if (c.outline) c.outline.visible = c.centre.distanceTo(this.camera.position) < far + 60;
     this.hudT -= dt;
     if (this.hudT <= 0) {
       this.hudT = 1 / 20;
@@ -463,7 +509,8 @@ export class RaceSession {
   private render(dt: number) {
     this.R.renderer.info.reset();
     this.R.render(dt);
-    if (useSettings.getState().rearMirror && (this.phase === 'race' || this.phase === 'countdown')) this.renderMirror();
+    if (useSettings.getState().rearMirror && (this.phase === 'race' || this.phase === 'countdown'))
+      this.renderMirror();
   }
 
   /** Rear-view mirror: second view of the scene into a small top-right viewport (scissored). */
@@ -484,7 +531,11 @@ export class RaceSession {
     if (b.loopActive) {
       const f = b.loopFrame;
       this.rearCam.up.set(f.ux, f.uy, f.uz);
-      this.rearCam.position.set(p.x + f.fx * 0.6 + f.ux * (top + 0.9), p.y + f.fy * 0.6 + f.uy * (top + 0.9), p.z + f.fz * 0.6 + f.uz * (top + 0.9));
+      this.rearCam.position.set(
+        p.x + f.fx * 0.6 + f.ux * (top + 0.9),
+        p.y + f.fy * 0.6 + f.uy * (top + 0.9),
+        p.z + f.fz * 0.6 + f.uz * (top + 0.9),
+      );
       this.rearCam.lookAt(p.x - f.fx * 25 + f.ux, p.y - f.fy * 25 + f.uy, p.z - f.fz * 25 + f.uz);
     }
     const H = window.innerHeight;
@@ -510,43 +561,13 @@ export class RaceSession {
       r.body.step(h, c, this.world);
       for (const e of r.body.takeEvents()) this.kartEvent(r, e);
     }
-    // kart vs kart
-    const n = this.racers.length;
-    for (let i = 0; i < n; i++)
-      for (let j = i + 1; j < n; j++) {
-        const a = this.racers[i].body;
-        const b = this.racers[j].body;
-        const dx = b.x - a.x;
-        const dz = b.z - a.z;
-        const d2 = dx * dx + dz * dz;
-        const rr = (a.radius + b.radius) * (a.shrinkT > 0 || b.shrinkT > 0 ? 0.8 : 1);
-        if (d2 < rr * rr && Math.abs(a.y - b.y) < 2.2 && a.ghostT <= 0 && b.ghostT <= 0 && a.respawnT <= 0 && b.respawnT <= 0) {
-          const d = Math.sqrt(d2) || 0.01;
-          const nx = dx / d;
-          const nz = dz / d;
-          const over = rr - d;
-          const ma = a.mass * (a.heavy ? 1.33 : 1) * (a.starT > 0 ? 5 : 1);
-          const mb = b.mass * (b.heavy ? 1.33 : 1) * (b.starT > 0 ? 5 : 1);
-          const ka = mb / (ma + mb);
-          const kb = ma / (ma + mb);
-          a.x -= nx * over * ka;
-          a.z -= nz * over * ka;
-          b.x += nx * over * kb;
-          b.z += nz * over * kb;
-          // lateral shove
-          const pushA = 7 * ka;
-          const pushB = 7 * kb;
-          const ra = -(nx * -Math.cos(a.yaw) + nz * Math.sin(a.yaw));
-          const rb = nx * -Math.cos(b.yaw) + nz * Math.sin(b.yaw);
-          a.vl += Math.sign(ra) * -pushA * 0.6;
-          b.vl += Math.sign(rb) * -pushB * 0.6;
-          // squash: a big kart landing on a shrunk one
-          if (a.shrinkT > 0 && b.shrinkT <= 0) a.squashT = 2;
-          if (b.shrinkT > 0 && a.shrinkT <= 0) b.squashT = 2;
-          const ra2 = this.racers[i];
-          const rb2 = this.racers[j];
-          if (ra2.isPlayer || rb2.isPlayer) this.sfx('bump', ra2.model.root.position);
-        }
+    // Contact never adds a drag impulse, refreshes a penalty, or changes speed.
+    for (let i = 0; i < this.racers.length; i++)
+      for (let j = i + 1; j < this.racers.length; j++) {
+        const a = this.racers[i],
+          b = this.racers[j];
+        if (this.contacts.resolve(a.body, b.body, `${i}:${j}`, this.world) && (a.isPlayer || b.isPlayer))
+          this.sfx('bump', a.model.root.position);
       }
   }
 
@@ -555,7 +576,8 @@ export class RaceSession {
     this.dangers.length = 0;
     this.items.dangers(this.dangers);
     for (const h of this.hazards.hits) this.dangers.push({ x: h.x, z: h.z, r: h.r });
-    if (this.boxCtx.length !== this.boxes.pos.length) this.boxCtx = this.boxes.pos.map((p) => ({ x: p.x, z: p.z, active: true }));
+    if (this.boxCtx.length !== this.boxes.pos.length)
+      this.boxCtx = this.boxes.pos.map((p) => ({ x: p.x, z: p.z, active: true }));
     for (let i = 0; i < this.boxCtx.length; i++) this.boxCtx[i].active = this.boxes.active[i];
   }
   private ctxObj = {
@@ -588,11 +610,25 @@ export class RaceSession {
       case 'wall':
         this.sfx('wall', p, me ? 1 : 0.6);
         if (me) this.chase.shake(0.12);
-        this.fx.burst(p.clone().add(new THREE.Vector3(0, 0.8, 0)), 6, { colors: ['#FFFFFF', '#FFE066'], shape: PShape.Star, speed: 4, size: 0.4 });
+        this.fx.burst(p.clone().add(new THREE.Vector3(0, 0.8, 0)), 6, {
+          colors: ['#FFFFFF', '#FFE066'],
+          shape: PShape.Star,
+          speed: 4,
+          size: 0.4,
+        });
         break;
       case 'bigLand':
         this.sfx('land', p, me ? 1 : 0.5);
-        this.fx.burst(p.clone(), 10, { colors: ['#FFFFFF'], shape: PShape.Puff, speed: 4, up: 0.5, gravity: 0, size: 0.9, sizeEnd: 1.8, life: 0.5 });
+        this.fx.burst(p.clone(), 10, {
+          colors: ['#FFFFFF'],
+          shape: PShape.Puff,
+          speed: 4,
+          up: 0.5,
+          gravity: 0,
+          size: 0.9,
+          sizeEnd: 1.8,
+          life: 0.5,
+        });
         break;
       case 'hop':
         if (me) this.sfx('hop', p, 0.8);
@@ -619,9 +655,15 @@ export class RaceSession {
         r.model.setExpression('happy', 1);
         if (me) {
           this.sfx('trick', p);
-          useHud.getState().toast('트릭! ✨', '#CDB4DB');
+          useHud.getState().toast('360° 공중 트릭! ✨', '#CDB4DB');
         }
-        this.fx.burst(p.clone().add(new THREE.Vector3(0, 1.5, 0)), 14, { colors: ['#FFE066', '#FFC8DD', '#A2D2FF'], shape: PShape.Star, speed: 5, additive: true, intensity: 2 });
+        this.fx.burst(p.clone().add(new THREE.Vector3(0, 1.5, 0)), 14, {
+          colors: ['#FFE066', '#FFC8DD', '#A2D2FF'],
+          shape: PShape.Star,
+          speed: 5,
+          additive: true,
+          intensity: 2,
+        });
         break;
       case 'fall':
         this.falls[r.slot] = (this.falls[r.slot] ?? 0) + 1;
@@ -663,8 +705,23 @@ export class RaceSession {
         const bi = this.boxes.collect(b.x, b.y, b.z, b.radius);
         if (bi >= 0) {
           const bp = this.boxes.pos[bi];
-          this.fx.burst(bp.clone(), 26, { colors: ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'], shape: PShape.Star, speed: 9, up: 4, gravity: 10, size: 0.55 });
-          this.fx.burst(bp.clone(), 10, { colors: ['#FFFFFF'], shape: PShape.Puff, speed: 4, gravity: 0, size: 1, sizeEnd: 2, life: 0.4 });
+          this.fx.burst(bp.clone(), 26, {
+            colors: ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'],
+            shape: PShape.Star,
+            speed: 9,
+            up: 4,
+            gravity: 10,
+            size: 0.55,
+          });
+          this.fx.burst(bp.clone(), 10, {
+            colors: ['#FFFFFF'],
+            shape: PShape.Puff,
+            speed: 4,
+            gravity: 0,
+            size: 1,
+            sizeEnd: 2,
+            life: 0.4,
+          });
           this.sfx('boxPop', bp, r.isPlayer ? 1 : 0.5);
           if (this.cfg.mode !== 'timeattack' && r.items.length < 2 && !r.roulette) {
             this.items.startRoulette(r);
@@ -676,7 +733,14 @@ export class RaceSession {
           if (b.coins < b.maxCoins) b.coins++;
           r.gauge = Math.min(100, r.gauge + 3);
           if (r.isPlayer) this.sfx('coin');
-          this.fx.burst(this.coins.pos[ci].clone(), 8, { colors: ['#FFF3B8', '#FFFFFF'], shape: PShape.Sparkle, speed: 4, additive: true, intensity: 2, size: 0.4 });
+          this.fx.burst(this.coins.pos[ci].clone(), 8, {
+            colors: ['#FFF3B8', '#FFFFFF'],
+            shape: PShape.Sparkle,
+            speed: 4,
+            additive: true,
+            intensity: 2,
+            size: 0.4,
+          });
         }
       }
       // hazards
@@ -685,7 +749,8 @@ export class RaceSession {
           const dx = h.x - b.x;
           const dz = h.z - b.z;
           if (dx * dx + dz * dz < (h.r + 1.1) ** 2 && Math.abs(h.y - b.y) < 3.5) {
-            if (h.kind === 'spin') this.items.applyHit(r, null, 'hazard', { fx: 'spin', dur: 1.0, coins: 2 }, false);
+            if (h.kind === 'spin')
+              this.items.applyHit(r, null, 'hazard', { fx: 'spin', dur: 1.0, coins: 2 }, false);
             else {
               const d = Math.hypot(dx, dz) || 1;
               b.x -= (dx / d) * 1.5;
@@ -723,7 +788,19 @@ export class RaceSession {
           b.slipstreamT += dt * 2;
           if (r.isPlayer && Math.random() < 0.6) {
             const p = r.model.root.position;
-            this.fx.normal.spawn({ pos: { x: p.x + (Math.random() - 0.5) * 3, y: p.y + 0.5 + Math.random() * 2, z: p.z + (Math.random() - 0.5) * 3 }, vel: { x: -Math.sin(b.yaw) * 25, y: 0, z: -Math.cos(b.yaw) * 25 }, color: '#FFFFFF', life: 0.3, size: 1.6, sizeEnd: 1.6, shape: PShape.Streak });
+            this.fx.normal.spawn({
+              pos: {
+                x: p.x + (Math.random() - 0.5) * 3,
+                y: p.y + 0.5 + Math.random() * 2,
+                z: p.z + (Math.random() - 0.5) * 3,
+              },
+              vel: { x: -Math.sin(b.yaw) * 25, y: 0, z: -Math.cos(b.yaw) * 25 },
+              color: '#FFFFFF',
+              life: 0.3,
+              size: 1.6,
+              sizeEnd: 1.6,
+              shape: PShape.Streak,
+            });
           }
           if (b.slipstreamT > 1.5 * 2) {
             b.slipstreamT = 0;
@@ -809,30 +886,42 @@ export class RaceSession {
       if (this.ghostT <= 0) {
         this.ghostT = 0.05;
         const b = this.player.body;
-        this.ghostRec.push(b.x, b.y, b.z, b.yaw);
+        recordReplayFrame(this.ghostRec, b, this.raceMs / 1000);
       }
     }
   }
 
   private aiItems(r: Racer, dt: number) {
     const ai = r.ai!;
-    const aggro = ai.d.aggro * (ai.personality === 'aggressive' ? 1.25 : ai.personality === 'defensive' ? 0.7 : 1);
+    const aggro =
+      ai.d.aggro * (ai.personality === 'aggressive' ? 1.25 : ai.personality === 'defensive' ? 0.7 : 1);
     if (r.gauge >= 100 && globalRng.chance(dt * 0.6 * aggro)) this.fireSkill(r);
     if (!r.items.length || r.roulette) return;
     const def = ALL_ITEMS[r.items[0]];
     const b = def.behavior;
     let use = false;
-    const behindClose = this.racers.some((o) => o !== r && r.raceDist - o.raceDist > 0 && r.raceDist - o.raceDist < 18);
-    const aheadClose = this.racers.some((o) => o !== r && o.raceDist - r.raceDist > 4 && o.raceDist - r.raceDist < 45);
+    const behindClose = this.racers.some(
+      (o) => o !== r && r.raceDist - o.raceDist > 0 && r.raceDist - o.raceDist < 18,
+    );
+    const aheadClose = this.racers.some(
+      (o) => o !== r && o.raceDist - r.raceDist > 4 && o.raceDist - r.raceDist < 45,
+    );
     switch (b.kind) {
       case 'boost':
       case 'glide':
       case 'autopilot':
       case 'teleport':
-        use = Math.abs(this.world.main.turnRight(this.world.main.idxAtS(r.body.progressS + 25), 10)) < 0.012 && globalRng.chance(dt * 1.2);
+        use =
+          Math.abs(this.world.main.turnRight(this.world.main.idxAtS(r.body.progressS + 25), 10)) < 0.012 &&
+          globalRng.chance(dt * 1.2);
         break;
       case 'projectile':
-        use = b.motion === 'homing' || b.motion === 'leader' || b.motion === 'rain' || b.motion === 'trackFly' ? globalRng.chance(dt * 0.5 * aggro) : b.motion === 'rollBack' ? behindClose && globalRng.chance(dt * 2) : aheadClose && globalRng.chance(dt * 1.5 * aggro);
+        use =
+          b.motion === 'homing' || b.motion === 'leader' || b.motion === 'rain' || b.motion === 'trackFly'
+            ? globalRng.chance(dt * 0.5 * aggro)
+            : b.motion === 'rollBack'
+              ? behindClose && globalRng.chance(dt * 2)
+              : aheadClose && globalRng.chance(dt * 1.5 * aggro);
         break;
       case 'trap':
       case 'zone':
@@ -867,7 +956,21 @@ export class RaceSession {
       this.sfx('confetti');
       if ('vibrate' in navigator) navigator.vibrate?.([60, 40, 60]);
       for (let k = 0; k < 6; k++)
-        setTimeout(() => this.fx.burst(r.model.root.position.clone().add(new THREE.Vector3(0, 5, 0)), 40, { colors: ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'], shape: PShape.Confetti, speed: 12, up: 8, gravity: 6, drag: 1.5, size: 0.45, life: 2.2, spin: 10 }), k * 250);
+        setTimeout(
+          () =>
+            this.fx.burst(r.model.root.position.clone().add(new THREE.Vector3(0, 5, 0)), 40, {
+              colors: ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'],
+              shape: PShape.Confetti,
+              speed: 12,
+              up: 8,
+              gravity: 6,
+              drag: 1.5,
+              size: 0.45,
+              life: 2.2,
+              spin: 10,
+            }),
+          k * 250,
+        );
       useHud.getState().set({ phase: 'finish' });
     } else {
       r.model.setExpression(this.finishOrder.length <= 3 ? 'win' : 'happy', 6);
@@ -903,7 +1006,15 @@ export class RaceSession {
       bestLapMs: Math.round(p.bestLap || p.finishMs / this.cfg.laps),
       lapTimes: p.lapTimes.map((x) => Math.round(x)),
       coins: p.body.coins,
-      entrants: this.racers.map((r) => ({ slot: r.slot, charId: r.charId, vehicleId: r.vehicleId, name: r.name, isPlayer: r.isPlayer, position: r.position, totalMs: Math.round(r.finishMs) })),
+      entrants: this.racers.map((r) => ({
+        slot: r.slot,
+        charId: r.charId,
+        vehicleId: r.vehicleId,
+        name: r.name,
+        isPlayer: r.isPlayer,
+        position: r.position,
+        totalMs: Math.round(r.finishMs),
+      })),
       itemStats: p.stats,
       mt3: this.mt3,
       hitsDealt: p.hitsDealt,
@@ -918,19 +1029,10 @@ export class RaceSession {
 
   private updateGhost(dt: number) {
     if (!this.ghost) return;
-    const d = this.ghost.data;
-    const frames = d.length / 4;
-    const t = (this.raceMs / 1000) / 0.05;
-    const i = Math.min(frames - 2, Math.floor(t));
-    const k = Math.min(1, t - i);
-    if (this.phase === 'intro' || this.phase === 'countdown') {
-      this.ghost.model.root.visible = false;
-      return;
-    }
-    this.ghost.model.root.visible = i < frames - 2;
     const g = this.ghost.model.root;
-    g.position.set(d[i * 4] + (d[i * 4 + 4] - d[i * 4]) * k, d[i * 4 + 1] + (d[i * 4 + 5] - d[i * 4 + 1]) * k, d[i * 4 + 2] + (d[i * 4 + 6] - d[i * 4 + 2]) * k);
-    g.rotation.y = d[i * 4 + 3];
+    g.visible =
+      !['intro', 'countdown'].includes(this.phase) &&
+      sampleReplay(this.ghost.data, this.raceMs / 1000, this.world.paths, g.position, g.quaternion);
     void dt;
   }
 
@@ -965,7 +1067,14 @@ export class RaceSession {
       const pan = r.isPlayer ? 0 : right.dot(p.clone().sub(cam).normalize());
       const top = r.body.tune.topSpeed;
       const ctl = r.isPlayer ? this.ctl : r.ai?.ctl;
-      eng.update(Math.abs(r.body.speed) / top, ctl?.throttle ?? 0, this.phase === 'done' ? 0 : vol, pan, r.body.drifting && r.body.grounded, r.body.boostT > 0);
+      eng.update(
+        Math.abs(r.body.speed) / top,
+        ctl?.throttle ?? 0,
+        this.phase === 'done' ? 0 : vol,
+        pan,
+        r.body.drifting && r.body.grounded,
+        r.body.boostT > 0,
+      );
     }
   }
 
@@ -978,22 +1087,67 @@ export class RaceSession {
     const c = this.camera.position;
     const f = new THREE.Vector3();
     this.camera.getWorldDirection(f);
-    const p = { x: c.x + f.x * 20 + (Math.random() - 0.5) * 50, y: c.y + 10 + Math.random() * 8, z: c.z + f.z * 20 + (Math.random() - 0.5) * 50 };
+    const p = {
+      x: c.x + f.x * 20 + (Math.random() - 0.5) * 50,
+      y: c.y + 10 + Math.random() * 8,
+      z: c.z + f.z * 20 + (Math.random() - 0.5) * 50,
+    };
     switch (kind) {
       case 'petals':
-        this.fx.normal.spawn({ pos: p, vel: { x: 1.5, y: -1.5, z: 0.5 }, color: Math.random() < 0.5 ? '#FFC8DD' : '#FFE3EF', life: 6, size: 0.35, shape: PShape.Petal, spin: 3 });
+        this.fx.normal.spawn({
+          pos: p,
+          vel: { x: 1.5, y: -1.5, z: 0.5 },
+          color: Math.random() < 0.5 ? '#FFC8DD' : '#FFE3EF',
+          life: 6,
+          size: 0.35,
+          shape: PShape.Petal,
+          spin: 3,
+        });
         break;
       case 'snow':
-        this.fx.normal.spawn({ pos: p, vel: { x: 0.6, y: -2.2, z: 0.3 }, color: '#FFFFFF', life: 6, size: 0.25, shape: PShape.Dot, spin: 1 });
+        this.fx.normal.spawn({
+          pos: p,
+          vel: { x: 0.6, y: -2.2, z: 0.3 },
+          color: '#FFFFFF',
+          life: 6,
+          size: 0.25,
+          shape: PShape.Dot,
+          spin: 1,
+        });
         break;
       case 'leaves':
-        this.fx.normal.spawn({ pos: p, vel: { x: 1, y: -1.2, z: 0.6 }, color: Math.random() < 0.5 ? '#FFB86B' : '#FF8A8A', life: 6, size: 0.35, shape: PShape.Petal, spin: 4 });
+        this.fx.normal.spawn({
+          pos: p,
+          vel: { x: 1, y: -1.2, z: 0.6 },
+          color: Math.random() < 0.5 ? '#FFB86B' : '#FF8A8A',
+          life: 6,
+          size: 0.35,
+          shape: PShape.Petal,
+          spin: 4,
+        });
         break;
       case 'sparkle':
-        this.fx.glow.spawn({ pos: p, vel: { x: 0, y: -0.4, z: 0 }, color: ['#FFE066', '#FFC8DD', '#A2D2FF'][Math.floor(Math.random() * 3)], life: 3, size: 0.3, sizeEnd: 0, shape: PShape.Sparkle, spin: 2, intensity: 1.6 });
+        this.fx.glow.spawn({
+          pos: p,
+          vel: { x: 0, y: -0.4, z: 0 },
+          color: ['#FFE066', '#FFC8DD', '#A2D2FF'][Math.floor(Math.random() * 3)],
+          life: 3,
+          size: 0.3,
+          sizeEnd: 0,
+          shape: PShape.Sparkle,
+          spin: 2,
+          intensity: 1.6,
+        });
         break;
       case 'bubbles':
-        this.fx.normal.spawn({ pos: { x: p.x, y: c.y - 2, z: p.z }, vel: { x: 0, y: 1.2, z: 0 }, color: '#DFF8FF', life: 4, size: 0.4, shape: PShape.Ring });
+        this.fx.normal.spawn({
+          pos: { x: p.x, y: c.y - 2, z: p.z },
+          vel: { x: 0, y: 1.2, z: 0 },
+          color: '#DFF8FF',
+          life: 4,
+          size: 0.4,
+          shape: PShape.Ring,
+        });
         break;
     }
   }
@@ -1003,10 +1157,28 @@ export class RaceSession {
     const hud = useHud.getState();
     const st: Standing[] = [...this.racers]
       .sort((a, b) => a.position - b.position)
-      .map((r) => ({ slot: r.slot, name: r.name, charId: r.charId, position: r.position, isPlayer: r.isPlayer, finished: r.finished }));
+      .map((r) => ({
+        slot: r.slot,
+        name: r.name,
+        charId: r.charId,
+        position: r.position,
+        isPlayer: r.isPlayer,
+        finished: r.finished,
+      }));
     let rouletteIcon: string | null = null;
     if (p.roulette) {
-      const keys = ['sugar', 'jelly', 'heart', 'bubble', 'pudding', 'cotton', 'rainbow', 'fakebox', 'comet', 'mini'];
+      const keys = [
+        'sugar',
+        'jelly',
+        'heart',
+        'bubble',
+        'pudding',
+        'cotton',
+        'rainbow',
+        'fakebox',
+        'comet',
+        'mini',
+      ];
       rouletteIcon = ALL_ITEMS[keys[Math.floor(this.time * 18) % keys.length]].icon;
     }
     let ghostDelta: number | null = null;
@@ -1040,28 +1212,36 @@ export class RaceSession {
   // ------------------------------------------------------------------ minimap
   private buildMinimap() {
     const m = this.world.main;
+    const mapPoint = new THREE.Vector3();
     let minX = Infinity;
     let maxX = -Infinity;
     let minZ = Infinity;
     let maxZ = -Infinity;
-    for (const path of this.world.paths) for (let i = 0; i < path.n; i++) {
-      minX = Math.min(minX, path.px[i]);
-      maxX = Math.max(maxX, path.px[i]);
-      minZ = Math.min(minZ, path.pz[i]);
-      maxZ = Math.max(maxZ, path.pz[i]);
-    }
+    for (const path of this.world.paths)
+      for (let i = 0; i < path.n; i++) {
+        path.pointAt(i * path.ds, 0, mapPoint);
+        minX = Math.min(minX, mapPoint.x);
+        maxX = Math.max(maxX, mapPoint.x);
+        minZ = Math.min(minZ, mapPoint.z);
+        maxZ = Math.max(maxZ, mapPoint.z);
+      }
     const S = 440; // 2x backing store for a crisp map on hi-dpi screens
     const pad = 40;
     const sx = (S - pad * 2) / Math.max(maxX - minX, maxZ - minZ);
-    this.mapXf = { sx, ox: pad - minX * sx + (S - pad * 2 - (maxX - minX) * sx) / 2, oz: pad - minZ * sx + (S - pad * 2 - (maxZ - minZ) * sx) / 2 };
+    this.mapXf = {
+      sx,
+      ox: pad - minX * sx + (S - pad * 2 - (maxX - minX) * sx) / 2,
+      oz: pad - minZ * sx + (S - pad * 2 - (maxZ - minZ) * sx) / 2,
+    };
     const c = document.createElement('canvas');
     c.width = c.height = S;
     const g = c.getContext('2d')!;
     const draw = (p: typeof m, w: number, col: string) => {
       g.beginPath();
       for (let i = 0; i < p.n; i += 2) {
-        const x = p.px[i] * sx + this.mapXf.ox;
-        const y = p.pz[i] * sx + this.mapXf.oz;
+        p.pointAt(i * p.ds, 0, mapPoint);
+        const x = mapPoint.x * sx + this.mapXf.ox;
+        const y = mapPoint.z * sx + this.mapXf.oz;
         if (i === 0) g.moveTo(x, y);
         else g.lineTo(x, y);
       }
@@ -1078,8 +1258,11 @@ export class RaceSession {
     draw(m, 22, '#F4F7FC');
     for (const loop of m.loops) {
       const i = m.idxAtS((loop.s0 + loop.s1) / 2);
-      g.beginPath(); g.arc(m.px[i] * sx + this.mapXf.ox, m.pz[i] * sx + this.mapXf.oz, 15, 0, Math.PI * 2);
-      g.strokeStyle = '#38DCEF'; g.lineWidth = 6; g.stroke();
+      g.beginPath();
+      g.arc(m.px[i] * sx + this.mapXf.ox, m.pz[i] * sx + this.mapXf.oz, 15, 0, Math.PI * 2);
+      g.strokeStyle = '#38DCEF';
+      g.lineWidth = 6;
+      g.stroke();
     }
     // start/finish line: checkered bar across the road
     const x0 = m.px[0] * sx + this.mapXf.ox;
@@ -1163,7 +1346,12 @@ export class RaceSession {
   }
 }
 
-const ghostMat = new THREE.MeshBasicMaterial({ color: '#BFE3FF', transparent: true, opacity: 0.38, depthWrite: false });
+const ghostMat = new THREE.MeshBasicMaterial({
+  color: '#BFE3FF',
+  transparent: true,
+  opacity: 0.38,
+  depthWrite: false,
+});
 /** Mirror rectangle in CSS px (top-left origin); the HUD frame uses the same formula. */
 export function mirrorRect() {
   const W = window.innerWidth;

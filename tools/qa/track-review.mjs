@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const base = process.argv[2] ?? 'http://127.0.0.1:5173';
 const out = process.argv[3] ?? 'test-results/track-review';
-const tracks = (process.argv[4] ?? 't1,t2,t3,t4,t5,t6,t7,t8').split(',');
+const tracks = (process.argv[4] ?? 't1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16').split(',');
 const drive = process.argv.includes('--drive');
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
@@ -15,7 +15,7 @@ try {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(`${base}/dev/race.html?track=${track}&autoplay=1&ts=8&laps=1&q=medium`, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.session, { timeout: 60000 });
+    await page.waitForFunction(() => window.session, undefined, { timeout: 60000 });
     await page.waitForTimeout(500);
     // Fixed camera and pose make before/after shots comparable.
     await page.evaluate(() => {
@@ -98,7 +98,16 @@ try {
       });
       await page.waitForTimeout(1800);
       await page.screenshot({ path: `${out}/${track}-driving.png` });
-      await page.waitForFunction(() => ['finish', 'done'].includes(window.session.phase), { timeout: 90000 });
+      try {
+        await page.waitForFunction(() => ['finish', 'done'].includes(window.session.phase), undefined, { timeout: 60000 });
+      } catch (error) {
+        console.log('DRIVE_STATE',JSON.stringify(await page.evaluate(() => {
+          const s=window.session,b=s.player.body;
+          return {track:s.cfg.trackId,phase:s.phase,time:s.raceMs,lap:s.player.lap,progress:b.progressS/s.world.main.length,path:b.onPath,t:b.proj.t,speed:b.speed,position:[b.x,b.y,b.z],falls:s.falls};
+        })));
+        await page.screenshot({path:`${out}/${track}-timeout.png`});
+        throw error;
+      }
       Object.assign(result, await page.evaluate(() => {
         const s = window.session;
         return { phase: s.phase, lap: s.player.lap, raceMs: Math.round(s.raceMs), falls: s.falls, fps: window.__fps };

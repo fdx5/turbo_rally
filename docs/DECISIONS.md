@@ -1,9 +1,27 @@
 # Decisions
 
+- **Sixteen expeditions and stunt clarification (2026-10-22):** keep the original eight
+  identities and add forest, desert oasis, Antarctic base, coral sea bridges, clockwork
+  factory, red canyon, abyssal tunnels and moonlit bamboo. All 16 courses have sharp
+  bends, steep grades and marked road-gap jumps; 33 optional branches remain selectable.
+  Magnetic loop roads and the literal 180-degree hairpin presentation were removed
+  following clarification. The 360-degree feature is now an airborne, player-triggered
+  spin (Space / drift), completed before ordinary wheel contact resumes.
+  Kart contact separates lanes without transferring momentum, refreshing squash, or
+  repeating collision sound. Swept road-triangle checks block underside penetration.
+  Shared branch mouths stay coplanar until the roads separate; tunnel apertures and
+  bridge supports preserve vehicle clearance on the other routes.
+  Pads grant 1 second; sugar boosts grant 2 seconds per charge, three charges accumulate
+  6 seconds, and item time pauses while movement is disabled. Replay v3 records full
+  orientation, road coordinates, contact state and actual timestamps; grounded playback
+  samples the road. Ghosts from retired layouts are hidden without deleting records.
+  Validation: `npm run check`, `npm run check:secrets`, 16-course browser driving and
+  `tools/qa/adventure-features.mjs` scenery / air-spin / booster audio checks.
+
 - **Adventure course rebuild (2026-10-22):** all eight layouts now use rounded 3D routes,
   60–110 m elevation ranges, 17 optional branches, suspension bridges, marked gaps and
   exploration caverns. Cavern/volcano themes and glacier/ruins scenery have separate materials.
-  Four circuits contain real inverted magnetic loops. Loop progress uses physical arc length;
+  Three circuits originally contained inverted magnetic loops (retired as noted above). Loop progress used physical arc length;
   the vehicle, chase camera and mirror use the same full road frame. Normal hills maintain
   contact; explicit ramp lips, gaps and player hops launch the kart.
   Boost pads use a subdivided road-conforming mesh and static high-contrast chevrons,

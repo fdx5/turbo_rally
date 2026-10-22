@@ -4,6 +4,9 @@ import type { BoostPad } from '../tracks/trackBuilder';
 import { tuning, type Tuning } from '../data/statCurves';
 import type { Stats } from '../data/vehicles';
 import type { CharacterDef } from '../data/characters';
+import * as THREE from 'three';
+import { roadCollider } from './roadCollider';
+import { PAD_BOOST_SECONDS, ITEM_BOOST_SECONDS } from '../data/raceTuning';
 
 export interface KartControls {
   steer: number;
@@ -25,6 +28,9 @@ export const MT_LEVELS = [
   { t: 2.1, dur: 1.7, mult: 1.3, color: '#CDB4DB', gauge: 22 },
 ];
 const G = 34;
+const sweepFrom = new THREE.Vector3(),
+  sweepTo = new THREE.Vector3(),
+  sweepHit = new THREE.Vector3();
 
 export type KartEvent =
   | 'wall'
@@ -82,6 +88,7 @@ export class KartBody {
   driftVisual = 0;
   // boosts
   boostT = 0;
+  itemBoostT = 0;
   boostMult = 1;
   boostIgnoreOffroad = false;
   // statuses (seconds remaining)
@@ -112,6 +119,10 @@ export class KartBody {
   autoMult = 1;
   trickReady = false;
   tricked = false;
+  trickAngle = 0;
+  prevTrickAngle = 0;
+  private trickClock = 0;
+  private trickDuration = 0;
   respawnT = 0;
   wrongWayT = 0;
   slipstreamT = 0;
@@ -162,6 +173,8 @@ export class KartBody {
     this.hints[0] = i;
     this.onPath = 0;
     this.loopActive = false;
+    this.tricked = false;
+    this.trickAngle = this.prevTrickAngle = this.trickClock = this.trickDuration = 0;
     m.project(this.x, this.y, this.z, i, this.proj);
     this.y = this.proj.y;
     this.py = this.y;
@@ -173,7 +186,14 @@ export class KartBody {
   }
 
   get controllable() {
-    return this.spinT <= 0 && this.stopT <= 0 && this.freezeT <= 0 && this.floatT <= 0 && this.respawnT <= 0 && this.sleepT <= 0;
+    return (
+      this.spinT <= 0 &&
+      this.stopT <= 0 &&
+      this.freezeT <= 0 &&
+      this.floatT <= 0 &&
+      this.respawnT <= 0 &&
+      this.sleepT <= 0
+    );
   }
   get invulnerable() {
     return this.invulT > 0 || this.starT > 0 || this.ghostT > 0 || this.respawnT > 0;
@@ -184,6 +204,22 @@ export class KartBody {
     this.boostIgnoreOffroad = ignoreOffroad || this.boostIgnoreOffroad;
     const top = this.tune.topSpeed * mult;
     if (this.speed < top * 0.92) this.speed = Math.max(this.speed, Math.min(top * 0.92, this.speed + 9));
+  }
+  boostItem(duration: number, mult: number) {
+    this.itemBoostT += Math.max(ITEM_BOOST_SECONDS, duration);
+    this.boost(this.itemBoostT, mult, true);
+  }
+  startAirTrick() {
+    if (this.grounded || this.tricked || this.respawnT > 0) return false;
+    const height = Math.max(0, this.y - this.proj.y);
+    const remaining = (this.vy + Math.sqrt(this.vy * this.vy + 2 * G * height)) / G;
+    if (remaining < 0.4) return false;
+    this.trickClock = this.trickAngle = this.prevTrickAngle = 0;
+    this.trickDuration = Math.min(0.65, remaining * 0.8);
+    this.tricked = true;
+    this.trickReady = false;
+    this.emit('trick');
+    return true;
   }
   private emit(e: KartEvent) {
     this.eventsBuf.push(e);
@@ -215,6 +251,12 @@ export class KartBody {
     this.py = this.y;
     this.pz = this.z;
     this.pyaw = this.yaw;
+    this.prevTrickAngle = this.trickAngle;
+    if (this.trickDuration > 0) {
+      this.trickClock = Math.min(this.trickDuration, this.trickClock + dt);
+      const u = this.trickClock / this.trickDuration;
+      this.trickAngle = u * u * (3 - 2 * u) * Math.PI * 2;
+    }
     this.tickStatuses(dt);
 
     if (this.respawnT > 0) {
@@ -288,9 +330,7 @@ export class KartBody {
       }
     }
     if (c.driftPress && !this.grounded && this.airT > 0.15 && this.trickReady) {
-      this.tricked = true;
-      this.trickReady = false;
-      this.emit('trick');
+      this.startAirTrick();
     }
     if (this.hopT > 0) {
       this.hopT -= dt;
@@ -315,14 +355,22 @@ export class KartBody {
       } else if (this.grounded) {
         const inward = Math.max(0, steer * this.driftDir);
         this.driftCharge += dt * T.driftCharge * this.chargeMul * (0.75 + 0.6 * inward);
-        const lv = this.driftCharge >= MT_LEVELS[2].t ? 3 : this.driftCharge >= MT_LEVELS[1].t ? 2 : this.driftCharge >= MT_LEVELS[0].t ? 1 : 0;
+        const lv =
+          this.driftCharge >= MT_LEVELS[2].t
+            ? 3
+            : this.driftCharge >= MT_LEVELS[1].t
+              ? 2
+              : this.driftCharge >= MT_LEVELS[0].t
+                ? 1
+                : 0;
         if (lv > this.mtLevel) {
           this.mtLevel = lv;
           this.emit(lv === 1 ? 'mt1' : lv === 2 ? 'mt2' : 'mt3');
         }
       }
     }
-    this.driftVisual += ((this.drifting ? this.driftDir * 0.42 : 0) - this.driftVisual) * Math.min(1, dt * 10);
+    this.driftVisual +=
+      ((this.drifting ? this.driftDir * 0.42 : 0) - this.driftVisual) * Math.min(1, dt * 10);
 
     // --- steering (yaw increases to the left)
     const sp = Math.abs(this.speed);
@@ -363,13 +411,16 @@ export class KartBody {
     this.z += vz * dt;
 
     // --- vertical / ground
-    const previousPath = this.onPath, previousS = this.proj.s, previousT = this.proj.t;
+    const previousPath = this.onPath,
+      previousS = this.proj.s,
+      previousT = this.proj.t;
     const ground = this.groundQuery(world);
     let g = G;
     for (const [a, b] of world.lowGravity) if (this.progressS >= a && this.progressS <= b) g = 11;
     if (this.glideT > 0) {
       g = 0;
-      this.vy = this.vy * Math.exp(-dt * 3) + (ground !== null ? (ground + 4.5 - this.y) * 2.5 * dt * 10 : 0) * 0;
+      this.vy =
+        this.vy * Math.exp(-dt * 3) + (ground !== null ? (ground + 4.5 - this.y) * 2.5 * dt * 10 : 0) * 0;
       if (ground !== null) this.y += (ground + 4.5 - this.y) * Math.min(1, dt * 3);
     }
     if (this.floatT > 0) {
@@ -381,9 +432,13 @@ export class KartBody {
     this.vy -= g * dt;
     let ny = this.y + this.vy * dt;
     const wasGrounded = this.grounded;
+    const rampLip =
+      previousPath === this.onPath &&
+      world.paths[this.onPath].ramps.some(
+        (r) => previousS <= r.s1 && this.proj.s > r.s1 && previousT >= r.t0 && previousT <= r.t1,
+      );
     if (ground !== null) {
       const slopeV = (ground - this.lastGroundY) / dt;
-      const rampLip = previousPath === this.onPath && world.paths[this.onPath].ramps.some(r => previousS <= r.s1 && this.proj.s > r.s1 && previousT >= r.t0 && previousT <= r.t1);
       // Ordinary hills use road adhesion. Only marked ramps, gaps and player hops launch.
       const snap = wasGrounded && this.hopT <= 0 && !rampLip && ny - ground < 0.6;
       if (ny <= ground || snap) {
@@ -401,6 +456,7 @@ export class KartBody {
         this.grounded = true;
         this.airT = 0;
         this.trickReady = false;
+        this.trickAngle = this.prevTrickAngle = this.trickClock = this.trickDuration = 0;
       } else {
         if (wasGrounded && rampLip) {
           // launched off a ramp lip
@@ -412,12 +468,45 @@ export class KartBody {
       this.lastGroundY = ground;
     } else {
       this.grounded = false;
+      if (wasGrounded && rampLip) {
+        this.vy = Math.max(this.vy, 3.5);
+        this.trickReady = true;
+      }
     }
     if (!this.grounded) {
       this.airT += dt;
       if (this.airT > 0.25 && this.vy > 0) this.trickReady = true;
     }
     this.y = this.glideT > 0 || this.floatT > 0 ? this.y : ny;
+    if (!wasGrounded && this.respawnT <= 0) {
+      const collider = roadCollider(world);
+      // Test the head against bridge undersides before the feet can pass through.
+      const clearance = 1.4 * (this.shrinkT > 0 ? 0.6 : 1);
+      sweepFrom.set(this.px, this.py + clearance, this.pz);
+      sweepTo.set(this.x, this.y + clearance, this.z);
+      if (collider.sweep(sweepFrom, sweepTo, true, sweepHit)) {
+        this.x = sweepHit.x;
+        this.z = sweepHit.z;
+        this.y = sweepHit.y - clearance - 0.035;
+        this.vy = Math.min(0, -Math.abs(this.vy) * 0.15);
+        this.grounded = false;
+      } else {
+        sweepFrom.set(this.px, this.py, this.pz);
+        sweepTo.set(this.x, this.y, this.z);
+        if (collider.sweep(sweepFrom, sweepTo, false, sweepHit)) {
+          this.x = sweepHit.x;
+          this.y = sweepHit.y;
+          this.z = sweepHit.z;
+          this.vy = 0;
+          this.grounded = true;
+          this.airT = 0;
+          this.landT = 0.25;
+          const contact = this.groundQuery(world);
+          if (contact !== null && Math.abs(contact - this.y) < 0.2) this.y = contact;
+          this.lastGroundY = this.y;
+        }
+      }
+    }
     void prevY;
     if (this.landT > 0) this.landT -= dt;
 
@@ -438,11 +527,17 @@ export class KartBody {
         const ds = this.proj.s - pad.s;
         if (Math.abs(ds) < pad.halfLen && Math.abs(this.proj.t - pad.t) < pad.halfWid + 0.6) {
           if (this.boostT < 0.9) this.emit('pad');
-          this.boost(1.0, 1.35, true);
+          this.boost(PAD_BOOST_SECONDS, 1.35, true);
         }
       }
       this.safeTimer -= dt;
-      if (this.safeTimer <= 0 && this.onPath === 0 && !this.offroad && Math.abs(this.proj.t) < this.proj.halfW - 2 && !this.proj.gap) {
+      if (
+        this.safeTimer <= 0 &&
+        this.onPath === 0 &&
+        !this.offroad &&
+        Math.abs(this.proj.t) < this.proj.halfW - 2 &&
+        !this.proj.gap
+      ) {
         this.safeTimer = 0.5;
         this.safeS = this.proj.s;
         this.safeT = this.proj.t * 0.5;
@@ -469,8 +564,12 @@ export class KartBody {
     const top = this.topSpeed();
     const target = c.brake > 0 ? 15 : Math.max(24, top);
     this.speed += (target - this.speed) * Math.min(1, dt * 2.4);
-    s += Math.max(15, this.speed) * dt / this.loopFrame.metric;
-    this.proj.t = clamp(this.proj.t + c.steer * dt * 7, -this.proj.halfW + this.radius, this.proj.halfW - this.radius);
+    s += (Math.max(15, this.speed) * dt) / this.loopFrame.metric;
+    this.proj.t = clamp(
+      this.proj.t + c.steer * dt * 7,
+      -this.proj.halfW + this.radius,
+      this.proj.halfW - this.radius,
+    );
     path.frameAt(s, this.loopFrame);
     const f = this.loopFrame;
     this.x = f.x + f.hx * this.proj.t;
@@ -481,7 +580,10 @@ export class KartBody {
     this.yaw = path.headingAt(s);
     this.lastGroundY = this.y;
     if (this.onPath === 0) this.progressS = s;
-    else this.progressS = (path.mainS0 + (path.mainS1 - path.mainS0) * s / path.length + world.main.length) % world.main.length;
+    else
+      this.progressS =
+        (path.mainS0 + ((path.mainS1 - path.mainS0) * s) / path.length + world.main.length) %
+        world.main.length;
     if (!path.loopAt(s)) {
       this.loopActive = false;
       path.project(this.x, this.y, this.z, path.idxAtS(s), this.proj, 4);
@@ -493,6 +595,10 @@ export class KartBody {
   /** Find drivable ribbon under the kart, resolve walls. Returns ground height or null (void). */
   private groundQuery(world: PhysWorld): number | null {
     const paths = world.paths;
+    const guidePath = this.onPath,
+      guideS = this.proj.s;
+    const tolerance = (p: TrackPath, k: number) =>
+      k === guidePath && p.ramps.some((r) => Math.abs(guideS - r.s1) < 6) ? 9 : 3;
     let best = -1;
     let bestScore = Infinity;
     const pr = this.proj;
@@ -505,13 +611,16 @@ export class KartBody {
         const dz = this.z - p.pz[p.n >> 1];
         if (dx * dx + dz * dz > (p.length * 0.75 + 20) ** 2) continue;
       }
-      p.project(this.x, this.y, this.z, hint, pr, k === 0 ? 40 : 30);
+      p.project(this.x, this.y, this.z, hint, pr, k === 0 ? 40 : 30, tolerance(p, k));
       this.hints[k] = pr.idx;
       const lim = pr.t < 0 ? pr.limitL : pr.limitR;
       const reachable = pr.y - this.y <= (this.grounded ? 1.2 : 0.6);
-      const inside = pr.dist2 <= lim * lim && !pr.gap && reachable;
+      // The base ribbon under a stunt is only a progress guide, never a hidden floor.
+      const inside = pr.dist2 <= lim * lim && !pr.gap && !p.loopAt(pr.s) && reachable;
       if (k > 0 && (pr.s < 0.5 || pr.s > p.length - 0.5)) continue;
-      const score = inside ? Math.abs(pr.t) / lim + Math.abs(pr.y - this.y) * 0.02 - (k === this.onPath ? 0.18 : 0) : 10 + Math.sqrt(pr.dist2) - lim + Math.abs(pr.y - this.y);
+      const score = inside
+        ? Math.abs(pr.t) / lim + Math.abs(pr.y - this.y) * 0.02 - (k === this.onPath ? 0.18 : 0)
+        : 10 + Math.sqrt(pr.dist2) - lim + Math.abs(pr.y - this.y);
       if (score < bestScore) {
         bestScore = score;
         best = k;
@@ -519,7 +628,7 @@ export class KartBody {
     }
     if (best < 0) best = 0;
     const p = paths[best];
-    p.project(this.x, this.y, this.z, this.hints[best], pr, 40);
+    p.project(this.x, this.y, this.z, this.hints[best], pr, 40, tolerance(p, best));
     this.hints[best] = pr.idx;
     this.onPath = best;
     // progress on main path
@@ -537,7 +646,8 @@ export class KartBody {
     const absT = Math.abs(pr.t);
     let surf = p.surfaceAt(pr.s, pr.t);
     this.offroad = false;
-    if (best > 0 && p.baseSurface !== Surface.Road) this.offroad = surf === Surface.Dirt || surf === Surface.Sand || surf === Surface.Choco;
+    if (best > 0 && p.baseSurface !== Surface.Road)
+      this.offroad = surf === Surface.Dirt || surf === Surface.Sand || surf === Surface.Choco;
     if (absT > pr.halfW + 1.2) {
       this.offroad = true;
       if (surf === Surface.Road) surf = Surface.Dirt;
@@ -545,6 +655,7 @@ export class KartBody {
     if (surf === Surface.Choco || surf === Surface.Sand) this.offroad = true;
     this.surface = surf;
     if (pr.gap) return null;
+    if (p.loopAt(pr.s)) return null;
     // Never pull a falling kart through the underside of a bridge or an unrelated path.
     if (pr.y - this.y > (this.grounded ? 1.2 : 0.6)) return null;
     if (!p.closed && (pr.s < 0.001 || pr.s > p.length - 0.001) && pr.dist2 > pr.t * pr.t + 0.25) return null;
@@ -583,7 +694,13 @@ export class KartBody {
       const pr = tmp;
       p.project(this.x, this.y, this.z, this.hints[k], pr, 20);
       const lim = pr.t < 0 ? pr.limitL : pr.limitR;
-      if (pr.dist2 <= lim * lim && !pr.gap && Math.abs(pr.y - this.y) < 2 && (k === 0 || (pr.s > 0.5 && pr.s < p.length - 0.5))) return true;
+      if (
+        pr.dist2 <= lim * lim &&
+        !pr.gap &&
+        Math.abs(pr.y - this.y) < 2 &&
+        (k === 0 || (pr.s > 0.5 && pr.s < p.length - 0.5))
+      )
+        return true;
     }
     return false;
   }
@@ -610,8 +727,10 @@ export class KartBody {
     this.ghostT = dec(this.ghostT);
     this.glideT = dec(this.glideT);
     this.autoT = dec(this.autoT);
+    if (this.itemBoostT > 0 && this.controllable) this.itemBoostT = Math.max(0, this.itemBoostT - dt);
     if (this.boostT > 0) {
       this.boostT -= dt;
+      this.boostT = Math.max(this.boostT, this.itemBoostT);
       if (this.boostT <= 0) {
         this.boostMult = 1;
         this.boostIgnoreOffroad = false;

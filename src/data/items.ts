@@ -2,6 +2,8 @@
  * Data-driven item definitions. Every basic item (12), shop weapon (40) and vehicle skill (20)
  * maps onto a small set of behaviour archetypes implemented in src/items/itemSystem.ts.
  */
+import { ITEM_BOOST_SECONDS } from './raceTuning';
+
 export type HitFx =
   | 'spin'
   | 'stop'
@@ -120,8 +122,8 @@ export interface ItemDef {
 const SPIN = (d = 1.2, coins = 3): Hit => ({ fx: 'spin', dur: d, coins });
 
 export const BASIC_ITEMS: ItemDef[] = [
-  { id: 'sugar', name: '슈가 대시', icon: '🍬', type: '부스트', desc: '1초간 +35% 가속, 오프로드 무시', behavior: { kind: 'boost', dur: 1.0, mult: 1.35 } },
-  { id: 'sugar3', name: '트리플 슈가 대시', icon: '🍭', type: '부스트', desc: '슈가 대시 3회', behavior: { kind: 'boost', dur: 1.0, mult: 1.35, uses: 3 } },
+  { id: 'sugar', name: '슈가 대시', icon: '🍬', type: '부스트', desc: '2초간 +35% 가속 · 도로 패드의 2배, 오프로드 무시', behavior: { kind: 'boost', dur: ITEM_BOOST_SECONDS, mult: 1.35 } },
+  { id: 'sugar3', name: '트리플 슈가 대시', icon: '🍭', type: '부스트', desc: '2초 가속 × 3회 · 연속 사용 시 시간 누적', behavior: { kind: 'boost', dur: ITEM_BOOST_SECONDS, mult: 1.35, uses: 3 } },
   { id: 'pudding', name: '푸딩 슬릭', icon: '🍮', type: '설치', desc: '밟으면 미끄러져요. 뒤에 들고 방패로도!', behavior: { kind: 'trap', model: 'pudding', hit: SPIN(1.0, 3), heldShield: true } },
   { id: 'jelly', name: '젤리볼', icon: '🟢', type: '투척', desc: '벽에 5번 튕기며 직진', behavior: { kind: 'projectile', motion: 'straight', speed: 52, bounces: 5, life: 7, hit: SPIN(1.2), model: 'jelly' } },
   { id: 'jelly3', name: '트리플 젤리볼', icon: '🫧', type: '투척', desc: '3발이 공전하다 하나씩 발사', behavior: { kind: 'projectile', motion: 'straight', speed: 52, bounces: 5, life: 7, count: 3, orbit: true, hit: SPIN(1.2), model: 'jelly' } },

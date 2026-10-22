@@ -7,7 +7,7 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const results = [];
 try {
-  for (const [track, feature] of [['t3','loop'], ['t3','inverted'], ['t4','cave'], ['t5','lava'], ['t6','glacier'], ['t7','bridge'], ['t8','fork'], ['t1','boost']]) {
+  for (const [track, feature] of [['t3','steep'], ['t3','trick'], ['t4','cave'], ['t5','lava'], ['t6','glacier'], ['t7','bridge'], ['t8','fork'], ['t1','boost'], ['t9','forest'], ['t10','desert'], ['t11','antarctic'], ['t12','ocean'], ['t13','factory'], ['t14','canyon'], ['t15','abyss'], ['t16','bamboo']]) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
@@ -15,41 +15,37 @@ try {
     await page.waitForFunction(() => window.session);
     const state = await page.evaluate(({ feature }) => {
       const s = window.session, p = s.world.main, L = p.length;
-      s.paused = true;
+      s.phase='countdown'; s.phaseT=2.99; s.frame(0.05); s.paused = true;
       let progress = feature === 'boost' ? s.world.pads[1].s - 5 : feature === 'bridge' ? L * 0.28 : L * 0.15;
       if (['cave','lava','glacier'].includes(feature)) {
         const zone = s.world.def.adventures.find(z => z.kind === feature || (feature === 'cave' && z.kind === 'cave'));
         progress = ((zone.u0 + zone.u1) / 2) * L;
       }
       if (feature === 'fork') progress = s.world.def.shortcuts[0].fromU * L - 100;
-      if (feature === 'loop') progress = p.loops[0].s0 - 12;
-      if (feature === 'inverted') progress = (p.loops[0].s0 + p.loops[0].s1) / 2;
+      if (feature === 'steep') progress = (s.world.def.grades[0].u0+0.025)*L;
+      if (feature === 'trick') progress = p.ramps[0].s1+3;
+      if (feature === 'forest') progress = L*0.045;
+      if (feature === 'desert') progress = L*0.69;
+      if (feature === 'antarctic') progress = L*0.72;
+      if (feature === 'abyss') progress = L*0.26;
+      if (feature === 'bamboo') progress = L*0.08;
       const b = s.player.body;
       b.place(s.world, progress, 0);
-      if (feature === 'inverted') {
-        p.frameAt(progress, b.loopFrame); b.loopActive = true;
-        b.x = b.px = b.loopFrame.x; b.y = b.py = b.loopFrame.y; b.z = b.pz = b.loopFrame.z;
+      if (feature === 'trick') {
+        b.y += 8; b.grounded=false; b.vy=3; b.airT=0.2; b.startAirTrick();
+        for (let n=0;n<40;n++) b.step(1/120,{steer:0,throttle:0,brake:0,drift:false,driftPress:false},s.world);
+        b.px=b.x; b.py=b.y; b.pz=b.z;
       }
       s.player.model.update(0, b, 1, s.time, null, { steer: 0, throttle: 0 });
       const i = p.idxAtS(progress);
       const pos = s.camera.position.clone().set(b.x - p.fx[i] * 15, b.y + 7, b.z - p.fz[i] * 15);
       const look = p.pointAt(progress + 25, 0, pos.clone(), 2);
-      if (feature === 'loop') {
-        const loop = p.loops[0];
-        const centre = p.pointAt((loop.s0 + loop.s1) / 2, 0, pos.clone());
-        pos.set(centre.x - p.fx[i] * 15 + p.hx[i] * 95, centre.y - 15, centre.z - p.fz[i] * 15 + p.hz[i] * 95);
-        look.copy(centre).add(pos.clone().set(0, -18, 0));
-      }
       if (feature === 'bridge') {
         pos.set(b.x + p.hx[i] * 70 - p.fx[i] * 40, b.y + 32, b.z + p.hz[i] * 70 - p.fz[i] * 40);
         look.set(b.x, b.y + 5, b.z);
       }
       s.camera.up.set(0, 1, 0);
       s.camera.position.copy(pos); s.camera.lookAt(look);
-      if (feature === 'inverted') {
-        s.chase.mode = 'chase'; s.phase = 'race';
-        s.chase.update(1 / 60, b, b.x, b.y, b.z, b.yaw, false);
-      }
       s.scene.updateMatrixWorld(true); s.wheels.update();
       return { track: s.cfg.trackId, feature, height: Math.round(b.y), branches: s.world.shortcuts.length, loops: p.loops.length, boostPads: s.world.pads.length };
     }, { feature });

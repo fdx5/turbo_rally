@@ -43,7 +43,11 @@ class Trail {
       depthWrite: false,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
-      uniforms: { uA: { value: new THREE.Color(colorA) }, uB: { value: new THREE.Color(colorB) }, uTime: { value: 0 } },
+      uniforms: {
+        uA: { value: new THREE.Color(colorA) },
+        uB: { value: new THREE.Color(colorB) },
+        uTime: { value: 0 },
+      },
       vertexShader: `attribute float aAlpha; varying float vA; varying vec2 vUv; void main(){ vA = aAlpha; vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
       fragmentShader: `uniform vec3 uA; uniform vec3 uB; uniform float uTime; varying float vA; varying vec2 vUv;
         void main(){ vec3 rb = 0.55 + 0.45*cos(6.2831*(vec3(0.0,0.33,0.67) + vUv.x*1.5 - uTime*1.5));
@@ -64,7 +68,10 @@ class Trail {
     for (let i = 0; i < this.n; i++) {
       const q = this.pts[Math.min(i, m - 1)] ?? p;
       const w = this.width * (1 - i / this.n);
-      this.pos.set([q.x - right.x * w, q.y, q.z - right.z * w, q.x + right.x * w, q.y, q.z + right.z * w], i * 6);
+      this.pos.set(
+        [q.x - right.x * w, q.y, q.z - right.z * w, q.x + right.x * w, q.y, q.z + right.z * w],
+        i * 6,
+      );
       const a = i < m ? 1 - i / this.n : 0;
       this.alpha[i * 2] = this.alpha[i * 2 + 1] = a;
     }
@@ -101,7 +108,12 @@ export class KartModel {
   private sc = 1;
   private expr: Expression = 'neutral';
   private sparkT = 0;
-  constructor(vehicleId: string, charId: CharId, loadout: CosmeticLoadout, opts: { outline?: boolean; decalScale?: number; pooledWheels?: boolean }) {
+  constructor(
+    vehicleId: string,
+    charId: CharId,
+    loadout: CosmeticLoadout,
+    opts: { outline?: boolean; decalScale?: number; pooledWheels?: boolean },
+  ) {
     this.vehicle = new VehicleModel(vehicleId, opts);
     this.character = new CharacterModel(charId, loadout, this.vehicle.bp.pose, opts.outline !== false, true);
     this.vehicle.seat.add(this.character.root);
@@ -124,7 +136,13 @@ export class KartModel {
     this.root.add(this.ice);
     this.stars = new THREE.Group();
     for (let i = 0; i < 4; i++) {
-      const s = new THREE.Mesh(starGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#FFE066').multiplyScalar(1.8), toneMapped: false }));
+      const s = new THREE.Mesh(
+        starGeo,
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#FFE066').multiplyScalar(1.8),
+          toneMapped: false,
+        }),
+      );
       s.scale.setScalar(0.22);
       this.stars.add(s);
     }
@@ -149,7 +167,8 @@ export class KartModel {
     this.root.add(this.cloud);
     for (const f of this.character.p.fx) {
       if (f.kind === 'trail') this.cosTrail = new Trail('#FFE066', f.color, 0.45);
-      if (f.kind === 'aura' || f.kind === 'sparkle' || f.kind === 'flame' || f.kind === 'float') this.aura = f.kind;
+      if (f.kind === 'aura' || f.kind === 'sparkle' || f.kind === 'flame' || f.kind === 'float')
+        this.aura = f.kind;
     }
   }
   setExpression(e: Expression, hold = 1.2) {
@@ -164,7 +183,14 @@ export class KartModel {
     this.character.setOutlines(near);
   }
 
-  update(dt: number, b: KartBody, alpha: number, t: number, fx: FX | null, input: { steer: number; throttle: number }) {
+  update(
+    dt: number,
+    b: KartBody,
+    alpha: number,
+    t: number,
+    fx: FX | null,
+    input: { steer: number; throttle: number },
+  ) {
     const x = b.px + (b.x - b.px) * alpha;
     const y = b.py + (b.y - b.py) * alpha;
     const z = b.pz + (b.z - b.pz) * alpha;
@@ -185,7 +211,8 @@ export class KartModel {
     this.inner.rotation.z += (targetRoll - this.inner.rotation.z) * blend;
     this.inner.rotation.y = 0;
     // Drift/spin around the fitted road normal, preserving contact on banked corners.
-    this.vehicle.root.rotation.y = b.driftVisual + b.spinAngle;
+    const trick = b.prevTrickAngle + (b.trickAngle - b.prevTrickAngle) * alpha;
+    this.vehicle.root.rotation.y = b.driftVisual + b.spinAngle + trick;
     if (b.loopActive) {
       const f = b.loopFrame;
       _forward.set(f.fx, f.fy, f.fz);
@@ -258,7 +285,19 @@ export class KartModel {
         fxv.x = -Math.sin(yaw) * 2 + (Math.random() - 0.5) * 4 + _r.x * side * 2;
         fxv.y = 2 + Math.random() * 3;
         fxv.z = -Math.cos(yaw) * 2 + (Math.random() - 0.5) * 4 + _r.z * side * 2;
-        fx.glow.spawn({ pos: { x: wx, y: y + 0.15, z: wz }, vel: fxv, color: col, life: 0.35, size: lv === 3 ? 0.42 : 0.28, sizeEnd: 0.05, shape: lv === 3 && Math.random() < 0.4 ? PShape.Star : PShape.Sparkle, gravity: 12, drag: 2, spin: 8, intensity: 2.2 });
+        fx.glow.spawn({
+          pos: { x: wx, y: y + 0.15, z: wz },
+          vel: fxv,
+          color: col,
+          life: 0.35,
+          size: lv === 3 ? 0.42 : 0.28,
+          sizeEnd: 0.05,
+          shape: lv === 3 && Math.random() < 0.4 ? PShape.Star : PShape.Sparkle,
+          gravity: 12,
+          drag: 2,
+          spin: 8,
+          intensity: 2.2,
+        });
       }
     }
     if (b.boostT > 0 || b.starT > 0) {
@@ -267,19 +306,91 @@ export class KartModel {
       fxv.x = -Math.sin(yaw) * 6 + (Math.random() - 0.5) * 2;
       fxv.y = 0.5 + Math.random();
       fxv.z = -Math.cos(yaw) * 6 + (Math.random() - 0.5) * 2;
-      fx.glow.spawn({ pos: { x: ex, y: y + 0.55, z: ez }, vel: fxv, color: b.starT > 0 ? RAINBOW[Math.floor(Math.random() * 6)] : Math.random() < 0.5 ? '#FFB86B' : '#FFE9A8', life: 0.3, size: 0.6, sizeEnd: 0.1, shape: PShape.Dot, drag: 3, intensity: 2.4 });
+      fx.glow.spawn({
+        pos: { x: ex, y: y + 0.55, z: ez },
+        vel: fxv,
+        color:
+          b.starT > 0 ? RAINBOW[Math.floor(Math.random() * 6)] : Math.random() < 0.5 ? '#FFB86B' : '#FFE9A8',
+        life: 0.3,
+        size: 0.6,
+        sizeEnd: 0.1,
+        shape: PShape.Dot,
+        drag: 3,
+        intensity: 2.4,
+      });
     }
     if (b.starT > 0 && Math.random() < 0.6) {
-      fx.glow.spawn({ pos: { x: x + (Math.random() - 0.5) * 2.5, y: y + Math.random() * 2.5, z: z + (Math.random() - 0.5) * 2.5 }, vel: { x: 0, y: 1.5, z: 0 }, color: RAINBOW[Math.floor(Math.random() * 6)], life: 0.6, size: 0.5, sizeEnd: 0, shape: PShape.Star, spin: 4, intensity: 2 });
+      fx.glow.spawn({
+        pos: {
+          x: x + (Math.random() - 0.5) * 2.5,
+          y: y + Math.random() * 2.5,
+          z: z + (Math.random() - 0.5) * 2.5,
+        },
+        vel: { x: 0, y: 1.5, z: 0 },
+        color: RAINBOW[Math.floor(Math.random() * 6)],
+        life: 0.6,
+        size: 0.5,
+        sizeEnd: 0,
+        shape: PShape.Star,
+        spin: 4,
+        intensity: 2,
+      });
     }
     if (b.offroad && b.grounded && Math.abs(b.speed) > 8 && Math.random() < 0.5) {
-      fx.normal.spawn({ pos: { x: x - Math.sin(yaw) * 1.4, y: y + 0.2, z: z - Math.cos(yaw) * 1.4 }, vel: { x: (Math.random() - 0.5) * 2, y: 1.5, z: (Math.random() - 0.5) * 2 }, color: '#F4E3C3', life: 0.6, size: 0.6, sizeEnd: 1.4, shape: PShape.Puff, drag: 2 });
+      fx.normal.spawn({
+        pos: { x: x - Math.sin(yaw) * 1.4, y: y + 0.2, z: z - Math.cos(yaw) * 1.4 },
+        vel: { x: (Math.random() - 0.5) * 2, y: 1.5, z: (Math.random() - 0.5) * 2 },
+        color: '#F4E3C3',
+        life: 0.6,
+        size: 0.6,
+        sizeEnd: 1.4,
+        shape: PShape.Puff,
+        drag: 2,
+      });
     }
-    if (b.sleepT > 0 && Math.random() < 0.1) fx.normal.spawn({ pos: { x, y: y + 2.6, z }, vel: { x: 0.4, y: 1.2, z: 0 }, color: '#A2D2FF', life: 1.2, size: 0.5, sizeEnd: 0.8, shape: PShape.Zzz });
-    if (b.wobbleT > 0 && Math.random() < 0.3) fx.glow.spawn({ pos: { x, y: y + 2.3, z }, vel: { x: (Math.random() - 0.5) * 2, y: 2, z: (Math.random() - 0.5) * 2 }, color: '#FF6B6B', life: 0.5, size: 0.35, sizeEnd: 0, shape: PShape.Drop, intensity: 1.6 });
+    if (b.sleepT > 0 && Math.random() < 0.1)
+      fx.normal.spawn({
+        pos: { x, y: y + 2.6, z },
+        vel: { x: 0.4, y: 1.2, z: 0 },
+        color: '#A2D2FF',
+        life: 1.2,
+        size: 0.5,
+        sizeEnd: 0.8,
+        shape: PShape.Zzz,
+      });
+    if (b.wobbleT > 0 && Math.random() < 0.3)
+      fx.glow.spawn({
+        pos: { x, y: y + 2.3, z },
+        vel: { x: (Math.random() - 0.5) * 2, y: 2, z: (Math.random() - 0.5) * 2 },
+        color: '#FF6B6B',
+        life: 0.5,
+        size: 0.35,
+        sizeEnd: 0,
+        shape: PShape.Drop,
+        intensity: 1.6,
+      });
     if (this.aura && Math.random() < 0.35) {
-      const col = this.aura === 'flame' ? '#FFB067' : this.aura === 'aura' ? RAINBOW[Math.floor(Math.random() * 6)] : '#FFF3B8';
-      fx.glow.spawn({ pos: { x: x + (Math.random() - 0.5) * 1.5, y: y + 1 + Math.random() * 1.5, z: z + (Math.random() - 0.5) * 1.5 }, vel: { x: 0, y: 0.8, z: 0 }, color: col, life: 0.8, size: 0.25, sizeEnd: 0, shape: PShape.Sparkle, spin: 3, intensity: 2 });
+      const col =
+        this.aura === 'flame'
+          ? '#FFB067'
+          : this.aura === 'aura'
+            ? RAINBOW[Math.floor(Math.random() * 6)]
+            : '#FFF3B8';
+      fx.glow.spawn({
+        pos: {
+          x: x + (Math.random() - 0.5) * 1.5,
+          y: y + 1 + Math.random() * 1.5,
+          z: z + (Math.random() - 0.5) * 1.5,
+        },
+        vel: { x: 0, y: 0.8, z: 0 },
+        color: col,
+        life: 0.8,
+        size: 0.25,
+        sizeEnd: 0,
+        shape: PShape.Sparkle,
+        spin: 3,
+        intensity: 2,
+      });
     }
   }
   /** shield bubble visual toggle (driven by racer shield state) */

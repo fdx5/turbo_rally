@@ -1,14 +1,26 @@
 import type { ThemeId } from '../data/tracks';
 
 export interface ThemeDef {
-  sky: { top: string; horizon: string; bottom: string; sun: string; sunDir: [number, number, number]; stars?: boolean; aurora?: boolean };
+  sky: {
+    top: string;
+    horizon: string;
+    bottom: string;
+    sun: string;
+    sunDir: [number, number, number];
+    stars?: boolean;
+    aurora?: boolean;
+  };
   fog: { color: string; near: number; far: number };
   light: { sun: string; sunI: number; hemiSky: string; hemiGround: string; hemiI: number; amb: number };
   ground: [string, string, string];
   shoulder: string;
   road: { base: string; speck: string; line: string; edge: string; glowEdge?: string; rainbow?: boolean };
   curb: [string, string];
-  wall: { style: 'candy' | 'fence' | 'neon' | 'stone' | 'barrier' | 'snow' | 'basalt' | 'cloud'; a: string; b: string };
+  wall: {
+    style: 'candy' | 'fence' | 'neon' | 'stone' | 'barrier' | 'snow' | 'basalt' | 'cloud';
+    a: string;
+    b: string;
+  };
   props: string[];
   landmarks: string[];
   clouds: number;
@@ -17,7 +29,7 @@ export interface ThemeDef {
   accent?: [string, string];
 }
 
-const BASE_THEMES: Record<Exclude<ThemeId, 'cavern' | 'volcano'>, ThemeDef> = {
+const BASE_THEMES = {
   candy: {
     sky: { top: '#5FB4F5', horizon: '#DDF0FF', bottom: '#F4F8EC', sun: '#FFF4D6', sunDir: [0.5, 0.75, 0.35] },
     fog: { color: '#DDEFFF', near: 260, far: 1300 },
@@ -49,7 +61,14 @@ const BASE_THEMES: Record<Exclude<ThemeId, 'cavern' | 'volcano'>, ThemeDef> = {
     ambience: 'birds',
   },
   neon: {
-    sky: { top: '#0E1530', horizon: '#2C3D7A', bottom: '#2A3C6E', sun: '#DCE8FF', sunDir: [0.3, 0.6, -0.6], stars: true },
+    sky: {
+      top: '#0E1530',
+      horizon: '#2C3D7A',
+      bottom: '#2A3C6E',
+      sun: '#DCE8FF',
+      sunDir: [0.3, 0.6, -0.6],
+      stars: true,
+    },
     fog: { color: '#24345F', near: 200, far: 1000 },
     light: { sun: '#CFE0FF', sunI: 1.35, hemiSky: '#6E8BFF', hemiGround: '#3B4A7A', hemiI: 1.05, amb: 0.35 },
     ground: ['#2E3A5E', '#34426A', '#3A4874'],
@@ -93,7 +112,14 @@ const BASE_THEMES: Record<Exclude<ThemeId, 'cavern' | 'volcano'>, ThemeDef> = {
     ambience: 'machines',
   },
   icecream: {
-    sky: { top: '#5E9EF0', horizon: '#EAF4FF', bottom: '#FFFFFF', sun: '#FFFFFF', sunDir: [0.3, 0.6, 0.6], aurora: true },
+    sky: {
+      top: '#5E9EF0',
+      horizon: '#EAF4FF',
+      bottom: '#FFFFFF',
+      sun: '#FFFFFF',
+      sunDir: [0.3, 0.6, 0.6],
+      aurora: true,
+    },
     fog: { color: '#EAF3FF', near: 240, far: 1200 },
     light: { sun: '#FFFFFF', sunI: 2.05, hemiSky: '#DCE8FF', hemiGround: '#FFFFFF', hemiI: 1.2, amb: 0.28 },
     ground: ['#FFFFFF', '#F1F6FF', '#E6F0FF'],
@@ -137,28 +163,173 @@ const BASE_THEMES: Record<Exclude<ThemeId, 'cavern' | 'volcano'>, ThemeDef> = {
     particles: 'sparkle',
     ambience: 'chimes',
   },
-};
+} satisfies Record<string, ThemeDef>;
 
 export const THEMES: Record<ThemeId, ThemeDef> = {
   ...BASE_THEMES,
+  forest: {
+    ...BASE_THEMES.hangang,
+    sky: { top: '#287E86', horizon: '#C5E7AE', bottom: '#DFEAD2', sun: '#FFF1B0', sunDir: [-0.4, 0.8, 0.3] },
+    fog: { color: '#9BC7A7', near: 170, far: 1000 },
+    ground: ['#367953', '#285F49', '#67935D'],
+    shoulder: '#99AE70',
+    road: { base: '#384E51', speck: '#263B3D', line: '#FFF6BA', edge: '#DFE8AD' },
+    curb: ['#DBA856', '#FFF0CB'],
+    wall: { style: 'fence', a: '#86694B', b: '#C1DB9C' },
+    props: ['pine', 'pine', 'cherryTree', 'rock'],
+    landmarks: ['mountain'],
+    particles: 'leaves',
+    ambience: 'birds',
+  },
+  desert: {
+    ...BASE_THEMES.construction,
+    sky: { top: '#57B2DD', horizon: '#FFE0A0', bottom: '#EAC586', sun: '#FFF4C4', sunDir: [-0.7, 0.5, 0.3] },
+    fog: { color: '#EEC995', near: 280, far: 1500 },
+    ground: ['#E8B870', '#D69A59', '#F2D393'],
+    shoulder: '#EBC88B',
+    road: { base: '#7B5D4D', speck: '#4C403C', line: '#FFF5D4', edge: '#FFF1C0' },
+    curb: ['#25AFA8', '#FFF0CF'],
+    wall: { style: 'stone', a: '#BF8B5F', b: '#E9BF83' },
+    props: ['palm', 'rock', 'sandPile'],
+    landmarks: ['mountain'],
+    particles: undefined,
+    ambience: 'wind',
+  },
+  antarctic: {
+    ...BASE_THEMES.icecream,
+    sky: {
+      top: '#162D65',
+      horizon: '#80CADB',
+      bottom: '#D9F4FF',
+      sun: '#DEFAFF',
+      sunDir: [0.4, 0.45, -0.4],
+      stars: true,
+      aurora: true,
+    },
+    fog: { color: '#91BACF', near: 240, far: 1350 },
+    light: { sun: '#D8F1FF', sunI: 1.8, hemiSky: '#A1C7FF', hemiGround: '#D8EDFA', hemiI: 1.2, amb: 0.32 },
+    ground: ['#E8F4FB', '#B7D2E6', '#D6EBF7'],
+    road: { base: '#345675', speck: '#243D59', line: '#FFFFFF', edge: '#64F6EF', glowEdge: '#8DEFFF' },
+    props: ['iceCrystal', 'rock'],
+    landmarks: ['iceMountain', 'igloo'],
+  },
+  ocean: {
+    ...BASE_THEMES.jeju,
+    sky: { top: '#1B9FD7', horizon: '#B8F4EF', bottom: '#ECF6D4', sun: '#FFFAD1', sunDir: [0.4, 0.8, 0.4] },
+    ground: ['#E0CF97', '#BFDAB5', '#F1DEA7'],
+    shoulder: '#E6DBAE',
+    road: { base: '#3E6779', speck: '#274550', line: '#FFFFFF', edge: '#FFF3BC' },
+    curb: ['#FFB56A', '#ECFFF4'],
+    wall: { style: 'fence', a: '#B9DDE0', b: '#38C2C9' },
+    props: ['palm', 'umbrella', 'rock'],
+    landmarks: ['lighthouse'],
+  },
+  clockwork: {
+    ...BASE_THEMES.neon,
+    sky: {
+      top: '#242848',
+      horizon: '#E5A86F',
+      bottom: '#705568',
+      sun: '#FFD599',
+      sunDir: [0.5, 0.5, -0.6],
+      stars: true,
+    },
+    fog: { color: '#746178', near: 230, far: 1400 },
+    ground: ['#554E58', '#73625B', '#4B4656'],
+    shoulder: '#AD9072',
+    road: { base: '#3B414D', speck: '#252B36', line: '#FFE8A1', edge: '#6CFFF1', glowEdge: '#67EBDD' },
+    curb: ['#EAB66B', '#405569'],
+    wall: { style: 'barrier', a: '#997B62', b: '#F9C76C' },
+    props: ['pipes', 'container', 'lamp'],
+    landmarks: ['crane', 'unfinished'],
+    ambience: 'machines',
+  },
+  canyon: {
+    ...BASE_THEMES.construction,
+    sky: { top: '#5C8BC4', horizon: '#FFC19A', bottom: '#D78E6D', sun: '#FFE5BA', sunDir: [-0.6, 0.5, 0.3] },
+    fog: { color: '#D89F8A', near: 280, far: 1500 },
+    ground: ['#AE634B', '#CE825B', '#8E5144'],
+    shoulder: '#E0B18B',
+    road: { base: '#63565D', speck: '#3F3949', line: '#FFF1CD', edge: '#FFE2AD' },
+    curb: ['#F8BE62', '#7DD2CC'],
+    wall: { style: 'stone', a: '#A97157', b: '#E5B58B' },
+    props: ['rock', 'rock', 'sandPile'],
+    landmarks: ['mountain'],
+    ambience: 'wind',
+  },
+  abyss: {
+    ...BASE_THEMES.neon,
+    sky: {
+      top: '#07182E',
+      horizon: '#15536A',
+      bottom: '#092B46',
+      sun: '#8FDCF0',
+      sunDir: [0.2, 0.7, 0.4],
+      stars: true,
+    },
+    fog: { color: '#103A55', near: 160, far: 1000 },
+    ground: ['#264C60', '#1C394E', '#3E6573'],
+    shoulder: '#466A78',
+    road: { base: '#273C58', speck: '#142740', line: '#D7FBFF', edge: '#7DF9E2', glowEdge: '#6AF8E4' },
+    curb: ['#A48AFF', '#75F7EC'],
+    wall: { style: 'neon', a: '#425476', b: '#72FCEB' },
+    props: ['iceCrystal', 'rock'],
+    landmarks: ['iceMountain'],
+    particles: 'bubbles',
+    ambience: 'chimes',
+  },
+  bamboo: {
+    ...BASE_THEMES.hanok,
+    sky: {
+      top: '#1B2B57',
+      horizon: '#9C91BB',
+      bottom: '#667A89',
+      sun: '#FFF2CE',
+      sunDir: [-0.5, 0.65, 0.3],
+      stars: true,
+    },
+    fog: { color: '#788C9F', near: 200, far: 1300 },
+    ground: ['#597F62', '#3B6552', '#8EAA79'],
+    shoulder: '#B6BE8B',
+    road: { base: '#4B535C', speck: '#303B47', line: '#FFF2CF', edge: '#FFE2A1' },
+    props: ['pine', 'lanternPole', 'rock'],
+    landmarks: ['pagoda', 'gate'],
+    ambience: 'birds',
+  },
   cavern: {
     ...BASE_THEMES.neon,
-    sky: { top: '#18192F', horizon: '#66518C', bottom: '#221E39', sun: '#B9B1FF', sunDir: [0.4, 0.7, 0.3], stars: true },
+    sky: {
+      top: '#18192F',
+      horizon: '#66518C',
+      bottom: '#221E39',
+      sun: '#B9B1FF',
+      sunDir: [0.4, 0.7, 0.3],
+      stars: true,
+    },
     fog: { color: '#302943', near: 170, far: 950 },
-    ground: ['#514B67', '#383B50', '#6A5A80'], shoulder: '#756982',
+    ground: ['#514B67', '#383B50', '#6A5A80'],
+    shoulder: '#756982',
     road: { base: '#4B526B', speck: '#2D324A', edge: '#90FFE0', line: '#DBDBFF', glowEdge: '#8DF5E2' },
-    curb: ['#8B72DC', '#C7F9F4'], wall: { style: 'stone', a: '#82739A', b: '#50485F' },
-    props: ['iceCrystal', 'rock', 'rock', 'iceCrystal'], landmarks: ['mountain', 'iceMountain'],
-    particles: 'sparkle', ambience: 'chimes',
+    curb: ['#8B72DC', '#C7F9F4'],
+    wall: { style: 'stone', a: '#82739A', b: '#50485F' },
+    props: ['iceCrystal', 'rock', 'rock', 'iceCrystal'],
+    landmarks: ['mountain', 'iceMountain'],
+    particles: 'sparkle',
+    ambience: 'chimes',
   },
   volcano: {
     ...BASE_THEMES.construction,
     sky: { top: '#342032', horizon: '#E98D5F', bottom: '#8D443C', sun: '#FFC389', sunDir: [-0.3, 0.65, 0.4] },
     fog: { color: '#9C5147', near: 210, far: 1300 },
     light: { sun: '#FFC99A', sunI: 1.6, hemiSky: '#AD91AE', hemiGround: '#FF6438', hemiI: 0.9, amb: 0.25 },
-    ground: ['#473B44', '#332D38', '#65505A'], shoulder: '#8D6860',
+    ground: ['#473B44', '#332D38', '#65505A'],
+    shoulder: '#8D6860',
     road: { base: '#514653', speck: '#292B36', edge: '#FFD984', line: '#FFFFFF', glowEdge: '#FF953E' },
-    curb: ['#FF8C38', '#F5D4AC'], wall: { style: 'basalt', a: '#5C4C59', b: '#A67F72' },
-    props: ['rock', 'rock', 'barrel'], landmarks: ['mountain', 'hallasan'], particles: 'sparkle', ambience: 'waves',
+    curb: ['#FF8C38', '#F5D4AC'],
+    wall: { style: 'basalt', a: '#5C4C59', b: '#A67F72' },
+    props: ['rock', 'rock', 'barrel'],
+    landmarks: ['mountain', 'hallasan'],
+    particles: 'sparkle',
+    ambience: 'waves',
   },
 };

@@ -5,12 +5,22 @@ import type { ThemeDef } from './themes';
 import type { TrackDef } from '../data/tracks';
 import { Rng } from '../core/rng';
 import { canvas, tex } from '../art/textures';
+import { roadClearance } from './roadClearance';
 
 /**
  * Circuit dressing that makes each course read as a race track: start grandstands with crowd,
  * banner gantries over the road, tyre walls on the outside of sharp corners, flag poles.
  */
-const BANNERS = ['TURBO RALLY', '별사탕 SODA', '뭉게 TIRES', 'GO! GO!', '드리프트 GP', 'POWER UP', '쭉쭉 오일', 'FINISH →'];
+const BANNERS = [
+  'TURBO RALLY',
+  '별사탕 SODA',
+  '뭉게 TIRES',
+  'GO! GO!',
+  '드리프트 GP',
+  'POWER UP',
+  '쭉쭉 오일',
+  'FINISH →',
+];
 
 function bannerAtlas(accent: [string, string]) {
   const [c, g] = canvas(1024, 1024);
@@ -33,13 +43,20 @@ function bannerAtlas(accent: [string, string]) {
   return tex(c);
 }
 
-export function buildDressing(def: TrackDef, theme: ThemeDef, main: TrackPath, groundHeight: (x: number, z: number) => number): THREE.Group {
+export function buildDressing(
+  def: TrackDef,
+  theme: ThemeDef,
+  main: TrackPath,
+  groundHeight: (x: number, z: number) => number,
+  paths: TrackPath[] = [main],
+): THREE.Group {
   const out = new THREE.Group();
   const rng = new Rng(def.no * 131);
   const accent = theme.accent ?? [theme.curb[0], '#2F80ED'];
   const b = new MeshBuilder();
   b.detail = 0.8;
   const L = main.length;
+  const blocksRoad = roadClearance(paths);
   const at = (s: number, t: number, lift = 0) => {
     const v = new THREE.Vector3();
     main.pointAt(s, t, v, lift);
@@ -69,7 +86,8 @@ export function buildDressing(def: TrackDef, theme: ThemeDef, main: TrackPath, g
       }
     }
     g.box(W + 1, 0.25, 8.5, accent[1], { p: [0, 6.3, -2.8] }, 0.3, 1);
-    for (const sx of [-1, 1]) g.box(0.35, 6.3, 0.35, '#B5BACA', { p: [sx * (W / 2 + 0.3), 3.15, -6.6] }, 0.3, 1);
+    for (const sx of [-1, 1])
+      g.box(0.35, 6.3, 0.35, '#B5BACA', { p: [sx * (W / 2 + 0.3), 3.15, -6.6] }, 0.3, 1);
     g.box(W, 1.1, 0.2, accent[0], { p: [0, 5.6, 1.2] }, 0.2, 1);
     const built = g.build({ outline: true });
     built.position.set(p.x, y0, p.z);
@@ -87,6 +105,13 @@ export function buildDressing(def: TrackDef, theme: ThemeDef, main: TrackPath, g
     if (main.gap[i]) return;
     const w = main.halfW[i] + 2.2;
     const base = at(s, 0);
+    if (
+      [-1, 1].some((side) => {
+        const post = at(s, side * w);
+        return blocksRoad(post.x, post.z, post.y, post.y + 8, 1.5, main);
+      })
+    )
+      return;
     const gm = new MeshBuilder();
     for (const sx of [-1, 1]) {
       gm.box(0.55, 7.4, 0.55, '#DCE0EA', { p: [sx * w, 3.7, 0] }, 0.25, 1);
@@ -116,7 +141,7 @@ export function buildDressing(def: TrackDef, theme: ThemeDef, main: TrackPath, g
   for (let s = 40; s < L - 20; s += 9) {
     const i = main.idxAtS(s);
     const k = main.turnRight(i, 10);
-    if (main.gap[i]) continue;
+    if (main.gap[i] || main.loopAt(s)) continue;
     if (Math.abs(k) > 0.022) {
       const outer = k > 0 ? -1 : 1; // turning right => outside is the left
       if ((outer < 0 ? main.wallL[i] : main.wallR[i]) === 0) continue;
@@ -124,7 +149,12 @@ export function buildDressing(def: TrackDef, theme: ThemeDef, main: TrackPath, g
       for (let n = 0; n < 3; n++) {
         const p = at(s + n * 2.2, (lim + 1.4) * outer);
         const y0 = groundAt(p);
-        for (let h = 0; h < 3; h++) tyres.torus(0.5, 0.24, h === 1 ? accent[0] : '#3A3644', { p: [p.x, y0 + 0.26 + h * 0.45, p.z], r: [Math.PI / 2, 0, 0] });
+        if (blocksRoad(p.x, p.z, y0, y0 + 2, 1, main)) continue;
+        for (let h = 0; h < 3; h++)
+          tyres.torus(0.5, 0.24, h === 1 ? accent[0] : '#3A3644', {
+            p: [p.x, y0 + 0.26 + h * 0.45, p.z],
+            r: [Math.PI / 2, 0, 0],
+          });
       }
     } else if (rng.chance(0.18) && !def.voidWorld) {
       const sd = rng.chance(0.5) ? -1 : 1;
@@ -132,9 +162,18 @@ export function buildDressing(def: TrackDef, theme: ThemeDef, main: TrackPath, g
       const lim = main.halfW[i] + (sd < 0 ? main.shoulderL[i] : main.shoulderR[i]);
       const p = at(s, (lim + 2.2) * sd);
       const y0 = groundAt(p);
+      if (blocksRoad(p.x, p.z, y0, y0 + 5.5, 1, main)) continue;
       tyres.cyl(0.07, 0.07, 5.5, '#DCE0EA', { p: [p.x, y0 + 2.75, p.z] }, 8);
       const yaw = yawAt(s);
-      tyres.box(0.05, 1.0, 1.6, rng.pick([accent[0], accent[1], '#FFC93C', '#27C26C']), { p: [p.x - Math.cos(yaw) * 0.8 * 0, y0 + 4.9, p.z], r: [0, yaw + Math.PI / 2, 0], outline: false }, 0.2, 1);
+      tyres.box(
+        0.05,
+        1.0,
+        1.6,
+        rng.pick([accent[0], accent[1], '#FFC93C', '#27C26C']),
+        { p: [p.x - Math.cos(yaw) * 0.8 * 0, y0 + 4.9, p.z], r: [0, yaw + Math.PI / 2, 0], outline: false },
+        0.2,
+        1,
+      );
     }
   }
   if (!tyres.isEmpty()) out.add(tyres.build({ outline: true }));

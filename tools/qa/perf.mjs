@@ -1,7 +1,7 @@
 // Perf report: node tools/qa/perf.mjs [desktop|mobile] [tracks]
 import { chromium } from 'playwright';
 const profile = process.argv[2] ?? 'desktop';
-const tracks = (process.argv[3] ?? 't1,t2,t3,t4,t5,t6,t7,t8').split(',');
+const tracks = (process.argv[3] ?? 't1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16').split(',');
 const mobile = profile === 'mobile';
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const rows = [];

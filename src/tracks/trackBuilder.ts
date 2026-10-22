@@ -12,6 +12,7 @@ import { buildClouds, buildSky, buildWater } from '../art/sky';
 import { buildDressing } from './dressing';
 import { boostPadGeometry } from './boostPads';
 import { buildAdventureWorld } from './adventureWorld';
+import { roadClearance } from './roadClearance';
 
 const SURF: Record<SurfaceName | 'road', Surface> = {
   road: Surface.Road,
@@ -60,8 +61,28 @@ export interface TrackWorld {
 export function buildPaths(def: TrackDef): { main: TrackPath; shortcuts: TrackPath[] } {
   const main = new TrackPath(def.points, true, def.width, null, def.shoulder ?? 6.5);
   const L = main.length;
-  main.loops = (def.loops ?? []).map(l => ({ s0: l.u0 * L, s1: l.u1 * L, radius: l.radius }));
-  for (const loop of main.loops) main.rangeIdx(loop.s0 / L, loop.s1 / L, i => { main.bankTan[i] = 0; });
+  for (const grade of def.grades ?? [])
+    main.rangeIdx(grade.u0, grade.u1, (i) => {
+      const u = ((i * main.ds) / L - grade.u0) / (grade.u1 - grade.u0);
+      main.py[i] += grade.h * Math.sin(Math.PI * u) ** 2;
+    });
+  if (def.grades?.length)
+    for (let i = 0; i < main.n; i++) {
+      const a = main.wrap(i - 1),
+        b = main.wrap(i + 1);
+      const dx = main.px[b] - main.px[a],
+        dy = main.py[b] - main.py[a],
+        dz = main.pz[b] - main.pz[a];
+      const length = Math.hypot(dx, dy, dz) || 1;
+      main.fx[i] = dx / length;
+      main.fy[i] = dy / length;
+      main.fz[i] = dz / length;
+    }
+  main.loops = (def.loops ?? []).map((l) => ({ s0: l.u0 * L, s1: l.u1 * L, radius: l.radius }));
+  for (const loop of main.loops)
+    main.rangeIdx(loop.s0 / L, loop.s1 / L, (i) => {
+      main.bankTan[i] = 0;
+    });
   for (const nw of def.noWall ?? []) {
     main.rangeIdx(nw.u0, nw.u1, (i) => {
       if (nw.side !== 'R') main.wallL[i] = 0;
@@ -100,32 +121,51 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
   });
   const pts: Vec3T[] = [[a0.x, a0.y, a0.z], [a.x, a.y, a.z], ...via, [b.x, b.y, b.z], [b1.x, b1.y, b1.z]];
   const rounded = roundRoute(pts, false);
-  const p = new TrackPath(rounded, false, sc.width, rounded.map(() => 0), 1.2);
+  const p = new TrackPath(
+    rounded,
+    false,
+    sc.width,
+    rounded.map(() => 0),
+    1.2,
+  );
   p.mainS0 = sc.fromU * L - overlap;
   p.mainS1 = sc.toU * L + overlap;
   // Match the main road plane at both mouths, easing back to a flat shortcut.
   const join = new Proj();
   for (let i = 0; i < p.n; i++) {
     const distance = Math.min(i * p.ds, p.length - i * p.ds);
-    const blend = 1 - THREE.MathUtils.smoothstep(distance, 0, overlap);
-    if (blend <= 0) continue;
-    main.project(p.px[i], p.py[i], p.pz[i], -1, join);
+    const endInfluence =
+      1 - THREE.MathUtils.smoothstep(distance, Math.min(135, p.length * 0.3), Math.min(200, p.length * 0.46));
+    if (endInfluence <= 0) continue;
+    const joinHint = main.idxAtS(i * p.ds < p.length / 2 ? p.mainS0 + distance : p.mainS1 - distance);
+    main.project(p.px[i], main.py[joinHint], p.pz[i], joinHint, join, 160);
+    // Keep the ENTIRE shared junction in one plane. A branch only climbs after its
+    // full width clears the main road; otherwise its deck/railing cuts through traffic.
+    const sharedWidth = join.halfW + p.halfW[i] + p.shoulderL[i] + 4;
+    const lateralBlend = 1 - THREE.MathUtils.smoothstep(Math.abs(join.t), sharedWidth, sharedWidth + 24);
+    const blend = Math.max(1 - THREE.MathUtils.smoothstep(distance, 0, overlap), lateralBlend * endInfluence);
     p.py[i] += (join.y - p.py[i]) * blend;
+    if (blend > 0.999)
+      for (let pass = 0; pass < 3; pass++) {
+        main.project(p.px[i], p.py[i], p.pz[i], -1, join);
+        p.py[i] = join.y;
+      }
     const h = Math.hypot(join.fx, join.fz) || 1;
-    const gx = join.fx / h * join.fy / h + join.hx * join.bankTan;
-    const gz = join.fz / h * join.fy / h + join.hz * join.bankTan;
+    const gx = ((join.fx / h) * join.fy) / h + join.hx * join.bankTan;
+    const gz = ((join.fz / h) * join.fy) / h + join.hz * join.bankTan;
     p.bankTan[i] = (gx * p.hx[i] + gz * p.hz[i]) * blend;
   }
   p.baseSurface = SURF[sc.surface];
   // Narrow the inside of a branch hairpin smoothly rather than folding a wide ribbon.
   const safeWidths = new Float32Array(p.n);
-  for (let i = 0; i < p.n; i++) safeWidths[i] = Math.min(sc.width / 2, Math.max(3.6, 0.6 / Math.max(0.001, Math.abs(p.turnRight(i, 2)))));
+  for (let i = 0; i < p.n; i++)
+    safeWidths[i] = Math.min(sc.width / 2, Math.max(3.6, 0.6 / Math.max(0.001, Math.abs(p.turnRight(i, 2)))));
   for (let i = 0; i < p.n; i++) {
     let width = safeWidths[i];
     for (let j = -10; j <= 10; j++) width = Math.min(width, safeWidths[p.wrap(i + j)] + Math.abs(j) * 0.08);
     p.halfW[i] = width;
   }
-  p.loops = (sc.loops ?? []).map(l => ({ s0: l.u0 * p.length, s1: l.u1 * p.length, radius: l.radius }));
+  p.loops = (sc.loops ?? []).map((l) => ({ s0: l.u0 * p.length, s1: l.u1 * p.length, radius: l.radius }));
   return p;
 }
 
@@ -139,7 +179,13 @@ function ribbon(
   tA: (i: number) => number,
   tB: (i: number) => number,
   yOff: number,
-  opts: { uvScale?: number; skipGap?: boolean; include?: (i: number) => boolean; color?: (i: number, side: 0 | 1) => THREE.Color | null; range?: [number, number] } = {},
+  opts: {
+    uvScale?: number;
+    skipGap?: boolean;
+    include?: (i: number) => boolean;
+    color?: (i: number, side: 0 | 1) => THREE.Color | null;
+    range?: [number, number];
+  } = {},
 ): THREE.BufferGeometry | null {
   const pos: number[] = [];
   const uv: number[] = [];
@@ -257,9 +303,15 @@ function edgeExtrude(
         // orient each triangle so its geometric normal agrees with the profile normal
         const tri = [quad[q], quad[q + 1], quad[q + 2]];
         const P0 = tri.map(([r, , jj]) => [r[jj * 3], r[jj * 3 + 1], r[jj * 3 + 2]]);
-        const ax = P0[1][0] - P0[0][0], ay = P0[1][1] - P0[0][1], az = P0[1][2] - P0[0][2];
-        const bx = P0[2][0] - P0[0][0], by = P0[2][1] - P0[0][1], bz = P0[2][2] - P0[0][2];
-        const gx = ay * bz - az * by, gy = az * bx - ax * bz, gz = ax * by - ay * bx;
+        const ax = P0[1][0] - P0[0][0],
+          ay = P0[1][1] - P0[0][1],
+          az = P0[1][2] - P0[0][2];
+        const bx = P0[2][0] - P0[0][0],
+          by = P0[2][1] - P0[0][1],
+          bz = P0[2][2] - P0[0][2];
+        const gx = ay * bz - az * by,
+          gy = az * bx - ax * bz,
+          gz = ax * by - ay * bx;
         const [, n0q, j0q] = tri[0];
         const d = gx * n0q[j0q * 3] + gy * n0q[j0q * 3 + 1] + gz * n0q[j0q * 3 + 2];
         if (d < 0) [tri[1], tri[2]] = [tri[2], tri[1]];
@@ -302,14 +354,74 @@ function edgeExtrude(
 }
 
 const WALL_PROFILES: Record<ThemeDef['wall']['style'], [number, number][]> = {
-  candy: [[0, -0.6], [0.05, 0.3], [0.15, 0.75], [0.45, 0.95], [0.75, 0.75], [0.85, 0.3], [0.9, -0.6]],
-  fence: [[0, -0.6], [0, 0.9], [0.1, 1.05], [0.25, 1.05], [0.35, 0.9], [0.35, -0.6]],
-  neon: [[0, -0.6], [0, 0.95], [0.15, 1.1], [0.55, 1.1], [0.7, 0.95], [0.7, -0.6]],
-  stone: [[0, -0.6], [0.05, 1.1], [0.25, 1.35], [0.8, 1.35], [1.0, 1.1], [1.05, -0.6]],
-  barrier: [[0, -0.6], [0.0, 0.25], [0.25, 0.5], [0.32, 1.05], [0.6, 1.05], [0.67, 0.5], [0.92, 0.25], [0.92, -0.6]],
-  snow: [[0, -0.6], [0.1, 0.5], [0.4, 0.95], [0.9, 1.05], [1.4, 0.8], [1.7, 0.2], [1.8, -0.6]],
-  basalt: [[0, -0.6], [0.05, 0.8], [0.2, 1.0], [0.7, 1.0], [0.9, 0.8], [0.95, -0.6]],
-  cloud: [[0, -0.6], [0.2, 0.55], [0.6, 0.85], [1.1, 0.7], [1.4, 0.2], [1.5, -0.6]],
+  candy: [
+    [0, -0.6],
+    [0.05, 0.3],
+    [0.15, 0.75],
+    [0.45, 0.95],
+    [0.75, 0.75],
+    [0.85, 0.3],
+    [0.9, -0.6],
+  ],
+  fence: [
+    [0, -0.6],
+    [0, 0.9],
+    [0.1, 1.05],
+    [0.25, 1.05],
+    [0.35, 0.9],
+    [0.35, -0.6],
+  ],
+  neon: [
+    [0, -0.6],
+    [0, 0.95],
+    [0.15, 1.1],
+    [0.55, 1.1],
+    [0.7, 0.95],
+    [0.7, -0.6],
+  ],
+  stone: [
+    [0, -0.6],
+    [0.05, 1.1],
+    [0.25, 1.35],
+    [0.8, 1.35],
+    [1.0, 1.1],
+    [1.05, -0.6],
+  ],
+  barrier: [
+    [0, -0.6],
+    [0.0, 0.25],
+    [0.25, 0.5],
+    [0.32, 1.05],
+    [0.6, 1.05],
+    [0.67, 0.5],
+    [0.92, 0.25],
+    [0.92, -0.6],
+  ],
+  snow: [
+    [0, -0.6],
+    [0.1, 0.5],
+    [0.4, 0.95],
+    [0.9, 1.05],
+    [1.4, 0.8],
+    [1.7, 0.2],
+    [1.8, -0.6],
+  ],
+  basalt: [
+    [0, -0.6],
+    [0.05, 0.8],
+    [0.2, 1.0],
+    [0.7, 1.0],
+    [0.9, 0.8],
+    [0.95, -0.6],
+  ],
+  cloud: [
+    [0, -0.6],
+    [0.2, 0.55],
+    [0.6, 0.85],
+    [1.1, 0.7],
+    [1.4, 0.2],
+    [1.5, -0.6],
+  ],
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -318,6 +430,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   const theme = THEMES[def.theme];
   const { main, shortcuts } = buildPaths(def);
   const paths = [main, ...shortcuts];
+  const blocksRoad = roadClearance(paths);
   const group = new THREE.Group();
   group.name = 'track';
   const rng = new Rng(def.id);
@@ -336,20 +449,24 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   const roadMat = toon({ map: roadTex, rim: 0.2 });
   // Open curb/edge markings where another road joins instead of drawing a stripe across it.
   const edgeMasks = new Map<TrackPath, Map<number, Uint8Array>>();
-  const edgeVisible = (path: TrackPath, i: number, side: number) => {
+  const edgeVisible = (path: TrackPath, i: number, side: number, offset = 0.5) => {
     let sides = edgeMasks.get(path);
-    if (!sides) edgeMasks.set(path, sides = new Map());
-    let mask = sides.get(side);
-    if (!mask) sides.set(side, mask = new Uint8Array(path.n));
+    if (!sides) edgeMasks.set(path, (sides = new Map()));
+    const key = side * (100 + offset * 10);
+    let mask = sides.get(key);
+    if (!mask) sides.set(key, (mask = new Uint8Array(path.n)));
     if (mask[i]) return mask[i] === 1;
-    const t = side * (path.halfW[i] + 0.5);
+    const t = side * (path.halfW[i] + offset);
     const x = path.px[i] + path.hx[i] * t;
     const z = path.pz[i] + path.hz[i] * t;
     const y = path.py[i] + t * path.bankTan[i];
     for (const other of paths) {
       if (other === path) continue;
       other.project(x, y, z, -1, tmpProj);
-      if (!tmpProj.gap && tmpProj.dist2 < (tmpProj.halfW + 0.8) ** 2 && Math.abs(tmpProj.y - y) < 1.2) { mask[i] = 2; return false; }
+      if (!tmpProj.gap && tmpProj.dist2 < (tmpProj.halfW + 0.8) ** 2 && Math.abs(tmpProj.y - y) < 1.2) {
+        mask[i] = 2;
+        return false;
+      }
     }
     mask[i] = 1;
     return true;
@@ -357,7 +474,13 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   for (const p of paths) {
     const isMain = p === main;
     const surfCol = !isMain && p.baseSurface !== Surface.Road ? surfaceColor(p.baseSurface) : null;
-    const g = ribbon(p, (i) => -p.halfW[i], (i) => p.halfW[i], 0.0 + (isMain ? 0 : 0.02), { skipGap: true });
+    const g = ribbon(
+      p,
+      (i) => -p.halfW[i],
+      (i) => p.halfW[i],
+      0.0 + (isMain ? 0 : 0.02),
+      { skipGap: true },
+    );
     if (!g) continue;
     let mat: THREE.Material = roadMat;
     if (surfCol) {
@@ -396,7 +519,14 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     if (!g) continue;
     const mat =
       z.surface === 'ice'
-        ? new THREE.MeshToonMaterial({ color: colStr, gradientMap: (roadMat as THREE.MeshToonMaterial).gradientMap, transparent: true, opacity: 0.85, emissive: '#5a7a9a', emissiveIntensity: 0.15 })
+        ? new THREE.MeshToonMaterial({
+            color: colStr,
+            gradientMap: (roadMat as THREE.MeshToonMaterial).gradientMap,
+            transparent: true,
+            opacity: 0.85,
+            emissive: '#5a7a9a',
+            emissiveIntensity: 0.15,
+          })
         : toon({ color: colStr, rim: 0.3 });
     const m = new THREE.Mesh(g, mat);
     m.receiveShadow = true;
@@ -414,7 +544,11 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         (i) => (side < 0 ? -p.halfW[i] - cw : p.halfW[i]),
         (i) => (side < 0 ? -p.halfW[i] : p.halfW[i] + cw),
         0.04,
-        { skipGap: true, include: (i) => edgeVisible(p, i, side), color: (i) => (Math.floor((i * p.ds) / 3) % 2 ? curbA : curbB) },
+        {
+          skipGap: true,
+          include: (i) => edgeVisible(p, i, side),
+          color: (i) => (Math.floor((i * p.ds) / 3) % 2 ? curbA : curbB),
+        },
       );
       if (!g) continue;
       const m = new THREE.Mesh(g, toon({ vertexColors: true, rim: 0.3 }));
@@ -424,12 +558,15 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       // A dark keyline and bright inset stay legible on grass, snow and night scenery.
       for (const [width, inset, color, lift] of [
         [0.55, 0.15, '#293445', 0.045],
-        [0.22, 0.30, theme.road.edge, 0.055],
+        [0.22, 0.3, theme.road.edge, 0.055],
       ] as const) {
-        const marking = ribbon(p,
+        const marking = ribbon(
+          p,
           (i) => side * (p.halfW[i] - inset) - width / 2,
           (i) => side * (p.halfW[i] - inset) + width / 2,
-          lift, { skipGap: true, include: (i) => edgeVisible(p, i, side) });
+          lift,
+          { skipGap: true, include: (i) => edgeVisible(p, i, side) },
+        );
         if (marking) {
           const line = new THREE.Mesh(marking, new THREE.MeshBasicMaterial({ color }));
           line.name = 'road-edge';
@@ -461,7 +598,12 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         (i) => (side < 0 ? -p.halfW[i] - p.shoulderL[i] - 1.5 : p.halfW[i] + 1.0),
         (i) => (side < 0 ? -p.halfW[i] - 1.0 : p.halfW[i] + p.shoulderR[i] + 1.5),
         -0.02,
-        { skipGap: true, uvScale: 1 / 8 },
+        {
+          skipGap: true,
+          uvScale: 1 / 8,
+          include: (i) =>
+            edgeVisible(p, i, side, 0.5) && edgeVisible(p, i, side, 3.5) && edgeVisible(p, i, side, 6),
+        },
       );
       if (!g) continue;
       const m = new THREE.Mesh(g, shoulderMat);
@@ -504,13 +646,21 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         }
         visible[i] = 1;
       }
-      const stripe = theme.wall.style === 'candy' || theme.wall.style === 'barrier' || theme.wall.style === 'neon';
+      const stripe =
+        theme.wall.style === 'candy' || theme.wall.style === 'barrier' || theme.wall.style === 'neon';
       const res = edgeExtrude(
         p,
         side,
         p === main ? prof : WALL_PROFILES.fence,
         (i) => visible[i] === 1,
-        (s) => (stripe ? (Math.floor(s / 2.5) % 2 ? theme.wall.a : theme.wall.b) : Math.floor(s / 6) % 2 ? theme.wall.a : theme.wall.b),
+        (s) =>
+          stripe
+            ? Math.floor(s / 2.5) % 2
+              ? theme.wall.a
+              : theme.wall.b
+            : Math.floor(s / 6) % 2
+              ? theme.wall.a
+              : theme.wall.b,
         (i) => (side < 0 ? p.halfW[i] + p.shoulderL[i] : p.halfW[i] + p.shoulderR[i]),
       );
       if (res) wallBits.push(res);
@@ -524,12 +674,24 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     group.add(wm);
     if (quality.outlines) {
       const hull = mergeGeometries(wallBits.map((w) => w.hull));
-      group.add(new THREE.Mesh(hull, outlineMaterial(theme.wall.style === 'neon' ? '#2c2450' : undefined, 0.8)));
+      group.add(
+        new THREE.Mesh(hull, outlineMaterial(theme.wall.style === 'neon' ? '#2c2450' : undefined, 0.8)),
+      );
     }
     if (theme.wall.style === 'neon') {
       // glowing top strip
       for (const side of [-1, 1] as const) {
-        const res = edgeExtrude(main, side, [[0.15, 1.12], [0.55, 1.12]], (i) => main.wallL[i] === 1 && main.wallR[i] === 1, () => theme.wall.b, (i) => main.halfW[i] + main.shoulderL[i]);
+        const res = edgeExtrude(
+          main,
+          side,
+          [
+            [0.15, 1.12],
+            [0.55, 1.12],
+          ],
+          (i) => main.wallL[i] === 1 && main.wallR[i] === 1,
+          () => theme.wall.b,
+          (i) => main.halfW[i] + main.shoulderL[i],
+        );
         if (res) group.add(new THREE.Mesh(res.solid, glow(theme.wall.b, 2.2, false)));
       }
     }
@@ -560,7 +722,8 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     } else {
       const natural = minY - 0.5 + hills(x, z) * THREE.MathUtils.smoothstep(d, 30, 160);
       h = THREE.MathUtils.lerp(roadY - 0.7, natural, THREE.MathUtils.smoothstep(d, 2, 40));
-      if (def.water?.area === 'all' && d > 70) h = THREE.MathUtils.lerp(h, lowY, THREE.MathUtils.smoothstep(d, 70, 110));
+      if (def.water?.area === 'all' && d > 70)
+        h = THREE.MathUtils.lerp(h, lowY, THREE.MathUtils.smoothstep(d, 70, 110));
       if (def.water?.area === 'side' && def.theme === 'hangang') {
         // the Han river runs along the north edge of the park
         const riverZ = 175 * 1.35;
@@ -573,7 +736,8 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       for (const [a, b] of bridgeRanges) {
         const s = i * p.ds;
         if (s >= a && s <= b) {
-          const blend = THREE.MathUtils.smoothstep(s, a, a + 18) * (1 - THREE.MathUtils.smoothstep(s, b - 18, b));
+          const blend =
+            THREE.MathUtils.smoothstep(s, a, a + 18) * (1 - THREE.MathUtils.smoothstep(s, b - 18, b));
           h = Math.min(h, THREE.MathUtils.lerp(h, lowY, blend));
         }
       }
@@ -600,7 +764,8 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       const nz = Math.sin(x * 0.05) * Math.cos(z * 0.043) + Math.sin(x * 0.13 + z * 0.11) * 0.5;
       tmp.copy(c0).lerp(c1, THREE.MathUtils.smoothstep(nz, -0.4, 0.6));
       if (Math.sin(x * 0.021 + 2) * Math.sin(z * 0.017) > 0.55) tmp.lerp(c2, 0.6);
-      if (def.water && h < waterY + 1.6) tmp.lerp(sandC, THREE.MathUtils.smoothstep(h, waterY + 1.6, waterY + 0.2));
+      if (def.water && h < waterY + 1.6)
+        tmp.lerp(sandC, THREE.MathUtils.smoothstep(h, waterY + 1.6, waterY + 0.2));
       cols.set([tmp.r, tmp.g, tmp.b], k * 3);
     }
     // Each terrain triangle spans several metres. Lower every vertex of cells touching
@@ -611,13 +776,15 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       for (let i = 0; i < p.n; i += 2) {
         const reach = p.halfW[i] + Math.max(p.shoulderL[i], p.shoulderR[i]) + margin;
         const cap = p.py[i] - Math.abs(p.bankTan[i]) * (reach - margin + 1.5) - 1.0;
-        const ix = Math.round((p.px[i] - centre.x + size / 2) / spacing);
-        const iz = Math.round((p.pz[i] - centre.z + size / 2) / spacing);
+        const cx = p.px[i],
+          cz = p.pz[i];
+        const ix = Math.round((cx - centre.x + size / 2) / spacing);
+        const iz = Math.round((cz - centre.z + size / 2) / spacing);
         const cells = Math.ceil(reach / spacing);
         for (let row = Math.max(0, iz - cells); row <= Math.min(res, iz + cells); row++) {
           for (let col = Math.max(0, ix - cells); col <= Math.min(res, ix + cells); col++) {
             const k = row * (res + 1) + col;
-            if ((pos.getX(k) - p.px[i]) ** 2 + (pos.getZ(k) - p.pz[i]) ** 2 <= reach * reach) {
+            if ((pos.getX(k) - cx) ** 2 + (pos.getZ(k) - cz) ** 2 <= reach * reach) {
               pos.setY(k, Math.min(pos.getY(k), cap));
             }
           }
@@ -636,9 +803,14 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     groundHeight = (x, z) => {
       const gx = THREE.MathUtils.clamp((x - centre.x + size / 2) / spacing, 0, res - 0.00001);
       const gz = THREE.MathUtils.clamp((z - centre.z + size / 2) / spacing, 0, res - 0.00001);
-      const col = Math.floor(gx), row = Math.floor(gz);
-      const u = gx - col, v = gz - row;
-      const a = row * (res + 1) + col, b = a + res + 1, d = a + 1, c = b + 1;
+      const col = Math.floor(gx),
+        row = Math.floor(gz);
+      const u = gx - col,
+        v = gz - row;
+      const a = row * (res + 1) + col,
+        b = a + res + 1,
+        d = a + 1,
+        c = b + 1;
       return u + v <= 1
         ? pos.getY(a) + u * (pos.getY(d) - pos.getY(a)) + v * (pos.getY(b) - pos.getY(a))
         : pos.getY(c) + (1 - u) * (pos.getY(b) - pos.getY(c)) + (1 - v) * (pos.getY(d) - pos.getY(c));
@@ -658,19 +830,35 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   }
 
   // Taper the verge into the terrain; bridges/sky roads have a solid, shallow deck edge.
-  const vergeMat = toon({ color: new THREE.Color(theme.shoulder).multiplyScalar(0.72), rim: 0.1, side: THREE.DoubleSide });
+  const vergeMat = toon({
+    color: new THREE.Color(theme.shoulder).multiplyScalar(0.72),
+    rim: 0.1,
+    side: THREE.DoubleSide,
+  });
   for (const path of paths) {
     for (const side of [-1, 1]) {
-      const g = ribbon(path,
+      const g = ribbon(
+        path,
         (i) => side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 1.5),
         (i) => side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 3.2),
-        -0.025, { skipGap: true, include: i => !path.loopAt(i * path.ds) });
+        -0.025,
+        {
+          skipGap: true,
+          include: (i) =>
+            !path.loopAt(i * path.ds) && edgeVisible(path, i, side, 5) && edgeVisible(path, i, side, 8),
+        },
+      );
       if (!g) continue;
       const pos = g.attributes.position as THREE.BufferAttribute;
       for (let v = 1; v < pos.count; v += 2) {
         const topY = pos.getY(v - 1);
-        const bridge = def.voidWorld || (path === main && inBridge(path.project(pos.getX(v), topY, pos.getZ(v), -1, tmpProj).s));
-        pos.setY(v, bridge ? topY - 1.6 : Math.min(topY - 0.25, groundHeight(pos.getX(v), pos.getZ(v)) - 0.08));
+        const bridge =
+          def.voidWorld ||
+          (path === main && inBridge(path.project(pos.getX(v), topY, pos.getZ(v), -1, tmpProj).s));
+        pos.setY(
+          v,
+          bridge ? topY - 1.6 : Math.min(topY - 0.25, groundHeight(pos.getX(v), pos.getZ(v)) - 0.08),
+        );
       }
       g.computeVertexNormals();
       const mesh = new THREE.Mesh(g, vergeMat);
@@ -684,38 +872,64 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   {
     const b = new MeshBuilder();
     b.detail = 0.7;
-    const deckRanges: [number, number][] = def.voidWorld ? [[0, main.n]] : bridgeRanges.map(([a, c]) => [Math.floor(a / main.ds), Math.floor(c / main.ds)]);
+    const deckRanges: [number, number][] = def.voidWorld
+      ? [[0, main.n]]
+      : bridgeRanges.map(([a, c]) => [Math.floor(a / main.ds), Math.floor(c / main.ds)]);
     for (const [a, c] of deckRanges) {
-      const g = ribbon(main, (i) => -main.halfW[i] - main.shoulderL[i] - 1.2, (i) => main.halfW[i] + main.shoulderR[i] + 1.2, -1.6, { range: [a, c], skipGap: true });
+      const g = ribbon(
+        main,
+        (i) => -main.halfW[i] - main.shoulderL[i] - 1.2,
+        (i) => main.halfW[i] + main.shoulderR[i] + 1.2,
+        -1.6,
+        { range: [a, c], skipGap: true },
+      );
       if (g) {
         g.scale(1, 1, 1);
-        const under = new THREE.Mesh(g, toon({ color: def.voidWorld ? '#E9DDFF' : '#E4DDEE', side: THREE.DoubleSide }));
+        const under = new THREE.Mesh(
+          g,
+          toon({ color: def.voidWorld ? '#E9DDFF' : '#E4DDEE', side: THREE.DoubleSide }),
+        );
         group.add(under);
       }
       for (let i = a; i <= c; i += 16) {
         const k = main.wrap(i);
-        if (main.gap[k]) continue;
+        if (main.gap[k] || main.loopAt(k * main.ds)) continue;
         const x = main.px[k];
         const z = main.pz[k];
         const y = main.py[k];
         if (def.voidWorld) {
           // fluffy cloud clusters under the rainbow road
-          for (let q = 0; q < 3; q++) b.sphere(rng.range(2.5, 4.5), '#FFFFFF', { p: [x + rng.range(-8, 8), y - 3 - rng.range(0, 2), z + rng.range(-8, 8)] });
+          for (let q = 0; q < 3; q++)
+            b.sphere(rng.range(2.5, 4.5), '#FFFFFF', {
+              p: [x + rng.range(-8, 8), y - 3 - rng.range(0, 2), z + rng.range(-8, 8)],
+            });
         } else {
           const bottom = lowY - 2;
           const hgt = y - 1.6 - bottom;
           for (const sd of [-1, 1]) {
             const t = sd * (main.halfW[k] - 2);
-            b.cyl(1.0, 1.3, hgt, '#D9D2EA', { p: [x + main.hx[k] * t, bottom + hgt / 2, z + main.hz[k] * t] });
+            if (blocksRoad(x + main.hx[k] * t, z + main.hz[k] * t, bottom, y - 1.6, 1.5)) continue;
+            b.cyl(1.0, 1.3, hgt, '#D9D2EA', {
+              p: [x + main.hx[k] * t, bottom + hgt / 2, z + main.hz[k] * t],
+            });
           }
         }
       }
     }
     for (const path of shortcuts) {
-      const g = ribbon(path, i => -path.halfW[i] - path.shoulderL[i] - 1.2, i => path.halfW[i] + path.shoulderR[i] + 1.2, -1.5);
+      const g = ribbon(
+        path,
+        (i) => -path.halfW[i] - path.shoulderL[i] - 1.2,
+        (i) => path.halfW[i] + path.shoulderR[i] + 1.2,
+        -1.5,
+      );
       if (g) {
-        const deck = new THREE.Mesh(g, toon({ color: def.voidWorld ? '#BDB6E2' : '#8A94AA', side: THREE.DoubleSide }));
-        deck.name = 'branch-deck'; group.add(deck);
+        const deck = new THREE.Mesh(
+          g,
+          toon({ color: def.voidWorld ? '#BDB6E2' : '#8A94AA', side: THREE.DoubleSide }),
+        );
+        deck.name = 'branch-deck';
+        group.add(deck);
       }
     }
     // rainbow-world side skirts so decks read as thick candy slabs
@@ -734,7 +948,11 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       const yaw = Math.atan2(main.fx[i], main.fz[i]);
       main.pointAt(s, 0, tmp);
       const w = main.halfW[i] + main.shoulderL[i] + 1.5;
-      b.add(new THREE.TorusGeometry(w, 0.55, 8, 24, Math.PI), (Math.round(s / 7) % 2 ? '#7DF9FF' : '#FF7EC8'), { p: [tmp.x, tmp.y, tmp.z], r: [0, yaw + Math.PI / 2, 0], glow: 1.8 });
+      b.add(new THREE.TorusGeometry(w, 0.55, 8, 24, Math.PI), Math.round(s / 7) % 2 ? '#7DF9FF' : '#FF7EC8', {
+        p: [tmp.x, tmp.y, tmp.z],
+        r: [0, yaw + Math.PI / 2, 0],
+        glow: 1.8,
+      });
     }
     // shell
     const shell: THREE.BufferGeometry[] = [];
@@ -781,7 +999,13 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   const padTex = boostPadTexture();
   padTex.wrapS = padTex.wrapT = THREE.RepeatWrapping;
   const pads: BoostPad[] = [];
-  const padMat = new THREE.MeshBasicMaterial({ map: padTex, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  const padMat = new THREE.MeshBasicMaterial({
+    map: padTex,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+  });
   const addPad = (path: TrackPath, s: number, t: number) => {
     const halfLen = 6;
     const halfWid = Math.min(5.4, path.halfW[path.idxAtS(s)] - 0.8);
@@ -797,14 +1021,26 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   });
 
   // ---------- props (static batched into spatial chunks) ----------
-  const chunks = scatterProps(def, theme, main, paths, nearest, groundHeight, rng, quality, centre, radius, minY);
+  const chunks = scatterProps(
+    def,
+    theme,
+    main,
+    paths,
+    nearest,
+    groundHeight,
+    rng,
+    quality,
+    centre,
+    radius,
+    minY,
+  );
   for (const c of chunks) {
     group.add(c.mesh);
     if (c.outline) group.add(c.outline);
   }
 
   // ---------- circuit dressing (grandstands, gantries, tyre walls, flags) ----------
-  group.add(buildDressing(def, theme, main, groundHeight));
+  group.add(buildDressing(def, theme, main, groundHeight, paths));
   group.add(buildAdventureWorld(def, paths, theme, groundHeight));
 
   // ---------- sky ----------
@@ -900,7 +1136,7 @@ function scatterProps(
   def: TrackDef,
   theme: ThemeDef,
   main: TrackPath,
-  _paths: TrackPath[],
+  paths: TrackPath[],
   nearest: ReturnType<typeof makeNearest>,
   groundHeight: (x: number, z: number) => number,
   rng: Rng,
@@ -910,7 +1146,16 @@ function scatterProps(
   minY: number,
 ) {
   const CH = 110;
-  const buckets = new Map<string, { solid: THREE.BufferGeometry[]; hull: THREE.BufferGeometry[]; glow: THREE.BufferGeometry[]; c: THREE.Vector3; n: number }>();
+  const buckets = new Map<
+    string,
+    {
+      solid: THREE.BufferGeometry[];
+      hull: THREE.BufferGeometry[];
+      glow: THREE.BufferGeometry[];
+      c: THREE.Vector3;
+      n: number;
+    }
+  >();
   const variants = new Map<string, ReturnType<MeshBuilder['parts']>>();
   const getVariant = (name: string, v: number, detail: number) => {
     const key = name + v + detail;
@@ -939,6 +1184,14 @@ function scatterProps(
     for (const g of parts.glow) bk.glow.push(g.clone().applyMatrix4(m4));
   };
   const clearOf = (x: number, z: number, margin: number) => {
+    for (const path of paths)
+      for (const loop of path.loops) {
+        const point = new THREE.Vector3();
+        for (let s = loop.s0; s <= loop.s1; s += 0.5) {
+          path.pointAt(s, 0, point);
+          if (Math.hypot(point.x - x, point.z - z) < path.halfW[path.idxAtS(s)] + 6 + margin) return false;
+        }
+      }
     const nr = nearest(x, z);
     const p = nr.path;
     const lim = p.halfW[nr.i] + Math.max(p.shoulderL[nr.i], p.shoulderR[nr.i]);
@@ -953,7 +1206,13 @@ function scatterProps(
       if ((side < 0 ? main.wallL[i] : main.wallR[i]) === 0 && !def.voidWorld) continue;
       const lim = main.halfW[i] + (side < 0 ? main.shoulderL[i] : main.shoulderR[i]);
       const name = rng.pick(theme.props);
-      const footprint = ({ tower: 14, cookieHouse: 9, hanok: 10, container: 7, scaffold: 7, busStop: 5 } as Record<string, number>)[name] ?? 4;
+      const footprint =
+        (
+          { tower: 14, cookieHouse: 9, hanok: 10, container: 7, scaffold: 7, busStop: 5 } as Record<
+            string,
+            number
+          >
+        )[name] ?? 4;
       const off = lim + footprint + rng.range(4, 10) + (rng.chance(0.4) ? rng.range(6, 28) : 0);
       const x = main.px[i] + main.hx[i] * off * side;
       const z = main.pz[i] + main.hz[i] * off * side;
@@ -1020,7 +1279,11 @@ function buildStartGate(main: TrackPath, theme: ThemeDef): THREE.Group {
   for (const sd of [-1, 1]) {
     b.capsule(0.7, 7, theme.curb[0], { p: [sd * w, 4, 0] });
     b.sphere(1.0, '#FFFFFF', { p: [sd * w, 8.4, 0] });
-    for (let k = 0; k < 4; k++) b.sphere(0.9, ['#FFADAD', '#A2D2FF', '#FDFFB6', '#B9FBC0'][k], { p: [sd * w + Math.cos(k * 1.6) * 1.2, 10 + k * 0.3, Math.sin(k * 1.6) * 1.2], s: [1, 1.2, 1] });
+    for (let k = 0; k < 4; k++)
+      b.sphere(0.9, ['#FFADAD', '#A2D2FF', '#FDFFB6', '#B9FBC0'][k], {
+        p: [sd * w + Math.cos(k * 1.6) * 1.2, 10 + k * 0.3, Math.sin(k * 1.6) * 1.2],
+        s: [1, 1.2, 1],
+      });
   }
   b.box(w * 2 + 1, 2.4, 0.8, '#FFFFFF', { p: [0, 8.2, 0] }, 0.3);
   const built = b.build();
@@ -1072,7 +1335,14 @@ function buildStartGate(main: TrackPath, theme: ThemeDef): THREE.Group {
   return g;
 }
 
-function buildRamp(main: TrackPath, s0: number, s1: number, t0: number, t1: number, h: number): THREE.Object3D {
+function buildRamp(
+  main: TrackPath,
+  s0: number,
+  s1: number,
+  t0: number,
+  t1: number,
+  h: number,
+): THREE.Object3D {
   const cols = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'];
   const pos: number[] = [];
   const col: number[] = [];

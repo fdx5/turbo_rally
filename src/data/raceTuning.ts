@@ -1,0 +1,2 @@
+export const PAD_BOOST_SECONDS = 1;
+export const ITEM_BOOST_SECONDS = PAD_BOOST_SECONDS * 2;

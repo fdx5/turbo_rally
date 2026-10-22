@@ -105,7 +105,7 @@ export function SettingsBody() {
       )}
       {row('BRAND_MODE', <span className="chip">{BRAND_MODE === 'real' ? 'real (실제 로고)' : 'parody (패러디)'}</span>)}
       <div style={{ fontSize: 14, color: '#4B5A78', marginTop: 10, lineHeight: 1.6 }}>
-        ⌨️ 조작: 방향키/WASD 이동 · Space 드리프트(점프 홉) · Shift/E 아이템 · Q 고유기 · C 뒤 보기 · Esc 일시정지 · 🎮 게임패드 지원
+        ⌨️ 조작: 방향키/WASD 이동 · Space 드리프트/공중 360° 트릭 · Shift/E 아이템 · Q 고유기 · C 뒤 보기 · Esc 일시정지 · 🎮 게임패드 지원
       </div>
     </div>
   );

@@ -112,7 +112,7 @@ export function TouchControls() {
       )}
       <div className={`pad ${on.drift ? 'on' : ''}`} style={P(null, 30, 34, 120)} {...hold('drift')}>
         🌀
-        <span style={{ position: 'absolute', bottom: 14, fontSize: 13 }}>드리프트</span>
+        <span style={{ position: 'absolute', bottom: 14, fontSize: 13 }}>드리프트·트릭</span>
       </div>
       <div className={`pad ${on.item ? 'on' : ''}`} style={P(null, 160, 120, 84)} {...tap('item')}>
         🎁

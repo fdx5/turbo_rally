@@ -200,7 +200,7 @@ export class ItemSystem {
     const pos = r.model.root.position;
     switch (b.kind) {
       case 'boost':
-        body.boost(b.dur, b.mult, true);
+        body.boostItem(b.dur, b.mult);
         this.hooks.sfx('boost', pos);
         break;
       case 'shield':

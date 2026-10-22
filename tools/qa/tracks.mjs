@@ -1,7 +1,7 @@
 // Autoplay every track at 4x, check full completion, collect shots & stats.
 import { chromium } from 'playwright';
 const out = process.argv[2];
-const tracks = (process.argv[3] ?? 't1,t2,t3,t4,t5,t6,t7,t8').split(',');
+const tracks = (process.argv[3] ?? 't1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16').split(',');
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 for (const t of tracks) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
