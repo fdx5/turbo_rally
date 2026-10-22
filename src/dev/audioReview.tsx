@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { useEffect, useState } from 'react';
 import '../ui/styles.css';
 import { audio } from '../audio/engine';
-import { music, SONGS } from '../audio/music';
+import { music, SONGS, renderSong } from '../audio/music';
 import { SFX_RECIPES, type SfxId, type Recipe } from '../audio/sfx';
 import { say } from '../audio/voice';
 import { CHARACTERS, type VoiceLine } from '../data/characters';
@@ -10,7 +10,7 @@ import { loadFonts } from '../art/fonts';
 
 // Exposed only by this development audition page for waveform/peak QA.
 if (new URLSearchParams(location.search).has('qa')) {
-  Object.assign(window, { audioReview: { audio, recipes: SFX_RECIPES } });
+  Object.assign(window, { audioReview: { audio, recipes: SFX_RECIPES, music, songs: SONGS, renderSong } });
 }
 
 /**

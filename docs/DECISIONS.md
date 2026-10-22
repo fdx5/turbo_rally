@@ -1,5 +1,21 @@
 # Decisions
 
+- **Road sightline curtains and expedition soundtrack (2026-10-22):** elevated branch
+  skirts previously extended down to terrain, making giant shoulder-coloured walls
+  across lower roads (reproduced at the forest start). All deck skirts now stop within
+  1.6 m of the road; pieces intersecting another route's vehicle envelope are omitted.
+  `tools/qa/road-visibility-review.mjs` checks all 16 start cameras and 48,696 lane/lens
+  rays across main roads and branches: no blocking skirts.
+  All sixteen landscapes now have individually written two-bar musical hooks, AABA
+  development, biome-specific instruments and stereo room/delay mixes. The previous
+  soundtrack had no t9–t16 entries, and t4/t5 still used retired biome music.
+  New flute, harp, kalimba, steelpan and oud voices complement the existing instruments;
+  the last-lap tempo lift remains. Leaving a race cancels delayed result music.
+  `tools/qa/music-review.mjs` renders the actual sequencer through its loop seam and
+  writes stereo WAV auditions plus clipping/silence checks; `/dev/audio-review.html`
+  exposes every theme for audition. Validation: `npm run check` (122 tests),
+  `npm run check:secrets`, sixteen live audio-bus checks, and both browser QA scripts.
+
 - **Sixteen expeditions and stunt clarification (2026-10-22):** keep the original eight
   identities and add forest, desert oasis, Antarctic base, coral sea bridges, clockwork
   factory, red canyon, abyssal tunnels and moonlit bamboo. All 16 courses have sharp

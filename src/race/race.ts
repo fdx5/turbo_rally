@@ -136,6 +136,7 @@ export class RaceSession {
   debugCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
   private ambientT = 0;
   private lastCountdown = '';
+  private resultMusicTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     cfg: RaceConfig,
@@ -950,7 +951,10 @@ export class RaceSession {
       const good = pos <= 3;
       music.stop(0.3);
       music.jingle(good ? 'fanfare' : 'aww');
-      setTimeout(() => music.play(good ? 'win' : 'lose', 1), 2400);
+      this.resultMusicTimer = setTimeout(() => {
+        this.resultMusicTimer = null;
+        music.play(good ? 'win' : 'lose', 1);
+      }, 2400);
       r.model.setExpression(good ? 'win' : 'lose', 10);
       say(r.charId, good ? 'win' : 'lose', { tts: true });
       this.sfx('confetti');
@@ -1334,6 +1338,9 @@ export class RaceSession {
   }
 
   dispose() {
+    if (this.resultMusicTimer !== null) clearTimeout(this.resultMusicTimer);
+    this.resultMusicTimer = null;
+    music.stop(0.25);
     for (const e of this.engines.values()) e.dispose();
     this.engines.clear();
     this.ambience.stop();

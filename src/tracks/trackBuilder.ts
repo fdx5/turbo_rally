@@ -829,7 +829,8 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     group.add(cloudSea);
   }
 
-  // Taper the verge into the terrain; bridges/sky roads have a solid, shallow deck edge.
+  // Shallow deck edges on EVERY elevated road. Extending a branch skirt to the
+  // terrain below created giant shoulder-coloured curtains across the lower road.
   const vergeMat = toon({
     color: new THREE.Color(theme.shoulder).multiplyScalar(0.72),
     rim: 0.1,
@@ -844,8 +845,12 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         -0.025,
         {
           skipGap: true,
-          include: (i) =>
-            !path.loopAt(i * path.ds) && edgeVisible(path, i, side, 5) && edgeVisible(path, i, side, 8),
+          include: (i) => {
+            if (path.loopAt(i * path.ds) || !edgeVisible(path, i, side, 5) || !edgeVisible(path, i, side, 8)) return false;
+            const t = side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 2.4);
+            const edge = path.pointAt(i * path.ds, t, new THREE.Vector3(), -0.025);
+            return !blocksRoad(edge.x, edge.z, edge.y - 1.6, edge.y + 0.1, 1.2, path);
+          },
         },
       );
       if (!g) continue;
@@ -853,11 +858,11 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       for (let v = 1; v < pos.count; v += 2) {
         const topY = pos.getY(v - 1);
         const bridge =
-          def.voidWorld ||
+          def.voidWorld || path !== main ||
           (path === main && inBridge(path.project(pos.getX(v), topY, pos.getZ(v), -1, tmpProj).s));
         pos.setY(
           v,
-          bridge ? topY - 1.6 : Math.min(topY - 0.25, groundHeight(pos.getX(v), pos.getZ(v)) - 0.08),
+          bridge ? topY - 1.6 : Math.max(topY - 1.6, Math.min(topY - 0.25, groundHeight(pos.getX(v), pos.getZ(v)) - 0.08)),
         );
       }
       g.computeVertexNormals();

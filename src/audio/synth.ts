@@ -89,12 +89,47 @@ export type Inst =
   | 'saw'
   | 'musicbox'
   | 'strings'
+  | 'flute'
+  | 'harp'
+  | 'kalimba'
+  | 'steelpan'
+  | 'oud'
   | 'marimba';
 
 export function playNote(ctx: Ctx, inst: Inst, midi: number, t: number, dur: number, vel: number, out: AudioNode) {
   const f = mtof(midi);
   const end = t + dur;
   switch (inst) {
+    case 'flute': {
+      const g = envGain(ctx, t, dur, { a: .035, d: .16, s: .72, r: .13, peak: vel * .23 }, out);
+      const o = osc(ctx, 'sine', f, t, end + .45, g);
+      const harmonic = envGain(ctx, t, dur, { a: .05, d: .1, s: .5, r: .12, peak: vel * .035 }, out);
+      osc(ctx, 'sine', f * 2, t, end + .45, harmonic);
+      const vibrato = ctx.createOscillator(), depth = ctx.createGain();
+      vibrato.frequency.value = 4.8;
+      depth.gain.setValueAtTime(0, t);
+      depth.gain.linearRampToValueAtTime(f * .004, t + .25);
+      vibrato.connect(depth).connect(o.frequency);
+      vibrato.start(t); vibrato.stop(end + .45);
+      const breath = envGain(ctx, t, dur, { a: .03, d: .1, s: .4, r: .1, peak: vel * .012 }, out);
+      noiseSrc(ctx, t, end + .35, filter(ctx, 'bandpass', f * 2, 1.5, breath));
+      break;
+    }
+    case 'harp':
+    case 'kalimba':
+    case 'steelpan': {
+      const partials = inst === 'harp' ? [1, 2, 3, 4] : inst === 'kalimba' ? [1, 2.76, 5.4] : [1, 2, 2.98, 4.02];
+      const decay = inst === 'harp' ? 1.7 : inst === 'kalimba' ? 1.1 : .85;
+      partials.forEach((ratio, i) => {
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(.0001, t);
+        g.gain.linearRampToValueAtTime(vel * (i === 0 ? .3 : .065 / i), t + .004);
+        g.gain.exponentialRampToValueAtTime(.0001, t + decay / (1 + i * .8));
+        g.connect(out);
+        osc(ctx, 'sine', f * ratio, t, t + decay + .05, g);
+      });
+      break;
+    }
     case 'square':
     case 'pulse': {
       const g = envGain(ctx, t, dur * 0.9, { a: 0.005, d: 0.08, s: 0.55, r: 0.06, peak: vel * 0.16 }, out);
@@ -152,19 +187,24 @@ export function playNote(ctx: Ctx, inst: Inst, midi: number, t: number, dur: num
     }
     case 'pluck':
     case 'uke':
+    case 'oud':
     case 'gayageum': {
       const g = ctx.createGain();
-      const dec = inst === 'gayageum' ? 1.4 : inst === 'uke' ? 0.55 : 0.4;
+      const dec = inst === 'gayageum' ? 1.4 : inst === 'oud' ? .8 : inst === 'uke' ? 0.55 : 0.4;
       g.gain.setValueAtTime(vel * 0.3, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dec);
       g.connect(out);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
-      lp.Q.value = 2;
-      lp.frequency.setValueAtTime(f * 8, t);
+      lp.Q.value = inst === 'oud' ? .7 : 2;
+      lp.frequency.setValueAtTime(f * (inst === 'oud' ? 4 : 8), t);
       lp.frequency.exponentialRampToValueAtTime(f * 1.5, t + dec * 0.6);
       lp.connect(g);
       const o = osc(ctx, inst === 'uke' ? 'triangle' : 'sawtooth', f, t, t + dec + 0.05, lp);
+      if (inst === 'oud') {
+        o.frequency.setValueAtTime(f * 1.012, t);
+        o.frequency.exponentialRampToValueAtTime(f, t + .045);
+      }
       if (inst === 'gayageum') {
         // characteristic pitch bend-in and late vibrato (nonghyeon)
         o.frequency.setValueAtTime(f * 0.97, t);
