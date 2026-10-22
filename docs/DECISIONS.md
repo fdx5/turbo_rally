@@ -12,7 +12,7 @@
   reflectors, local crystal lights and a road-following headlamp. Outdoor snowfall
   and leaves stop inside enclosed sections.
   Validation: 138 tests, build/typecheck/secrets checks, and browser inspection of
-  all 16 maps: 19 cave/tunnel sections on 13 maps, 855 roof rays, 38 drive/roof views,
+  all 16 maps: 18 cave/tunnel sections on 13 maps, 810 roof rays, 36 drive/roof views,
   no missing crowns or blocked driving routes (`tools/qa/cavern-review.mjs`).
 
 - **Steep-descent camera and natural scenery (2026-10-22):** camera height previously
