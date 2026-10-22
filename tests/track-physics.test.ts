@@ -120,12 +120,13 @@ describe('road contact', () => {
 
 describe('all-track driving regression', () => {
   for (const def of TRACKS) {
-    it(`${def.id}: completes a lap with finite positions and stable grounded contact`, () => {
+    for (const vehicle of def.id === 't8' ? VEHICLES : [VEHICLES[0]]) {
+    it(`${def.id}/${vehicle.id}: completes a lap with finite positions and stable grounded contact`, () => {
       const { main, shortcuts } = buildPaths(def);
       const world: PhysWorld = { main, paths: [main, ...shortcuts], pads: [],
         lowGravity: (def.lowGravity ?? []).map(g => [g.u0 * main.length, g.u1 * main.length]),
         voidY: def.voidWorld ? -5 : -20 };
-      const k = body(world.paths.length), ai = new AIDriver(5, 'balanced', 'hard');
+      const k = new KartBody(vehicle.stats, CHARACTERS[0], world.paths.length), ai = new AIDriver(5, 'balanced', 'hard');
       k.place(world, 0, 0);
       let travelled = 0, last = 0, falls = 0;
       const pr = new Proj();
@@ -145,9 +146,10 @@ describe('all-track driving regression', () => {
           expect(Math.abs(k.y - pr.y)).toBeLessThan(0.025);
         }
       }
-      console.log(`${def.id}: distance=${Math.round(travelled)} falls=${falls}`);
+      console.log(`${def.id}/${vehicle.id}: distance=${Math.round(travelled)} falls=${falls}`);
       expect(travelled).toBeGreaterThanOrEqual(main.length);
       expect(falls).toBe(0);
     });
+    }
   }
 });
