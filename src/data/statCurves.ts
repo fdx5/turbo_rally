@@ -19,20 +19,24 @@ export interface Tuning {
   mass: number;
   driftTurn: number; // rad/s base drift yaw
   driftCharge: number; // charge-rate multiplier
+  driftDuration: number; // mini-turbo duration multiplier
   offroadFactor: number; // fraction of top speed on offroad
+  stunDuration: number; // weight-based spin/stop/launch duration multiplier
 }
 export function tuning(st: Stats): Tuning {
   return {
-    topSpeed: L(26.5, 33.5, st.speed),
-    accelTime: L(3.2, 1.6, st.accel),
+    // Keep a straight-line advantage without making speed outweigh every other stat.
+    topSpeed: L(29.8, 32.2, st.speed),
+    accelTime: L(3.4, 1.35, st.accel),
     turnRate: L(1.55, 2.35, st.handling),
     mass: L(0.7, 1.6, st.weight),
     driftTurn: L(1.15, 1.75, st.drift),
-    driftCharge: L(0.85, 1.18, st.drift),
-    offroadFactor: L(0.42, 0.8, st.offroad),
+    driftCharge: L(0.8, 1.4, st.drift),
+    driftDuration: L(0.9, 1.25, st.drift),
+    offroadFactor: L(0.55, 0.9, st.offroad),
+    stunDuration: L(1, 0.8, st.weight),
   };
 }
-/** Display speed (km/h) — 1 → 80 km/h, 10 → 115 km/h at top speed. */
-export const displayKmh = (ms: number) =>
-  Math.round(ms <= 26.5 ? ms * (80 / 26.5) : 80 + (ms - 26.5) * (35 / 7));
-export const displayTopKmh = (stat: number) => Math.round(L(80, 115, stat));
+/** Use the same physical speed for the HUD and vehicle selection. */
+export const displayKmh = (ms: number) => Math.round(ms * 3.6);
+export const displayTopKmh = (stat: number) => displayKmh(L(29.8, 32.2, stat));

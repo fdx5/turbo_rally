@@ -346,7 +346,7 @@ export class KartBody {
       if (!c.drift || this.speed < 7 || !can) {
         if (this.mtLevel > 0 && can) {
           const L = MT_LEVELS[this.mtLevel - 1];
-          this.boost(L.dur, L.mult);
+          this.boost(L.dur * T.driftDuration, L.mult);
           this.emit('mtRelease');
         }
         this.drifting = false;

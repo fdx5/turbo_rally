@@ -600,7 +600,8 @@ export class ItemSystem {
       this.hooks.sfx('splat', v.model.root.position);
       return false;
     }
-    const dur = hit.dur;
+    const isStun = hit.fx === 'spin' || hit.fx === 'stop' || hit.fx === 'launch';
+    const dur = hit.dur * (isStun ? b.tune.stunDuration : 1);
     switch (hit.fx) {
       case 'spin':
         b.spinT = dur;
@@ -664,7 +665,6 @@ export class ItemSystem {
         b.pullT = dur;
         break;
     }
-    const isStun = hit.fx === 'spin' || hit.fx === 'stop' || hit.fx === 'launch';
     if (isStun) {
       b.drifting = false;
       b.boostT = 0;

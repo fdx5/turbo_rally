@@ -11,6 +11,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sim:economy": "node tools/economy-sim/sim.mjs",
+    "sim:vehicles": "tsx tools/vehicle-balance.ts",
     "check:secrets": "node tools/check-secrets.mjs",
     "start": "node --max-old-space-size=256 dist-server/server/index.mjs",
     "start:ts": "tsx server/index.ts",
