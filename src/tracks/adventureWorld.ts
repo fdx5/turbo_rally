@@ -10,6 +10,7 @@ import type { ThemeDef } from './themes';
 import { buildBiomeScenery } from './biomeScenery';
 import { roadClearance } from './roadClearance';
 import { landscapeMaterial } from './landscape';
+import { cavernGeometry, cavernMaterial, cavernRoofLift } from './cavern';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const at = (p: TrackPath, s: number, t = 0, lift = 0) => p.pointAt(s, t, new THREE.Vector3(), lift);
@@ -145,39 +146,12 @@ export function buildAdventureWorld(
               : lava
                 ? '#FF8735'
                 : '#A18CFF';
-    const radius = 24;
+    let caveRoof: THREE.BufferGeometry | null = null;
     if (cave) {
-      const rows = Math.ceil((end - start) / 4),
-        cols = 20;
-      const pos: number[] = [],
-        colors: number[] = [],
-        indices: number[] = [];
-      const color = new THREE.Color(rock);
-      for (let row = 0; row <= rows; row++) {
-        const s = start + (row / rows) * (end - start);
-        for (let col = 0; col <= cols; col++) {
-          const angle = (col / cols) * Math.PI;
-          const irregular = radius + 1.3 * Math.sin(row * 1.7 + col * 2.3);
-          const p = at(main, s, Math.cos(angle) * irregular, Math.sin(angle) * irregular * 0.82 - 1);
-          pos.push(p.x, p.y, p.z);
-          const shade = 0.8 + 0.22 * Math.sin(row * 1.7 + col * 2.3);
-          colors.push(color.r * shade, color.g * shade, color.b * shade);
-          if (row < rows && col < cols) {
-            const a = row * (cols + 1) + col,
-              b = a + cols + 1;
-            const q0 = at(main, s, Math.cos(angle) * radius, Math.sin(angle) * radius * 0.82 - 1);
-            if (!blocksRoad(q0.x, q0.z, q0.y - 3, q0.y + 3, 3, main))
-              indices.push(a, b, a + 1, a + 1, b, b + 1);
-          }
-        }
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-      g.setIndex(indices);
-      g.computeVertexNormals();
-      const shell = new THREE.Mesh(g, toon({ vertexColors: true, side: THREE.DoubleSide, rim: 0.15 }));
+      const shell = new THREE.Mesh(cavernGeometry(main, paths, start, end, rock), cavernMaterial());
+      caveRoof = shell.geometry;
       shell.name = 'exploration-cavern';
+      shell.castShadow = true;
       shell.receiveShadow = true;
       out.add(shell);
     }
@@ -205,7 +179,7 @@ export function buildAdventureWorld(
             5,
           );
           if (cave && Math.floor(s / 13) % 2 === 0) {
-            const roof = at(main, s, side * 6, 18);
+            const roof = at(main, s, side * 6, cavernRoofLift(caveRoof!, s, side * 6));
             if (blocksRoad(roof.x, roof.z, roof.y - 5, roof.y + 1, 1.8, main)) continue;
             solids.cone(
               1.3,
@@ -218,9 +192,16 @@ export function buildAdventureWorld(
         }
       }
     }
+    if (cave) for (let s = start + 5; s < end - 3; s += 12) {
+      const i = main.idxAtS(s);
+      for (const side of [-1, 1]) {
+        const p = at(main, s, side * (main.halfW[i] + 2.4), .65);
+        details.box(.26, .22, 2.2, light, { p: [p.x, p.y, p.z], r: [0, main.headingAt(s), 0], glow: 1.8, outline: false }, .05, 1);
+      }
+    }
     for (const u of [0.18, 0.72]) {
       const p = at(main, start + (end - start) * u, 0, 10);
-      const lamp = new THREE.PointLight(light, lava ? 30 : 45, 45, 1.2);
+      const lamp = new THREE.PointLight(light, cave ? 110 : 45, cave ? 95 : 45, 1.2);
       lamp.position.copy(p);
       out.add(lamp);
     }

@@ -33,6 +33,7 @@ import { globalRng } from '../core/rng';
 import { useSettings } from '../core/settings';
 import { KartContacts } from '../physics/contacts';
 import { recordReplayFrame, sampleReplay } from './replay';
+import { cavernSections } from '../tracks/cavern';
 
 export interface Entrant {
   charId: CharId;
@@ -137,6 +138,10 @@ export class RaceSession {
   private ambientT = 0;
   private lastCountdown = '';
   private resultMusicTimer: ReturnType<typeof setTimeout> | null = null;
+  private caveMix = 0;
+  private caveRanges: [number, number][] = [];
+  private daylight: { light: THREE.Light; intensity: number; inside: number }[] = [];
+  private caveHeadlamp = new THREE.SpotLight('#E3F0FF', 0, 55, Math.PI * .23, .65, 1.2);
 
   constructor(
     cfg: RaceConfig,
@@ -160,6 +165,10 @@ export class RaceSession {
     );
     this.sun = L.sun;
     this.scene.add(L.group);
+    this.caveRanges = cavernSections(def).map(z => [z.u0 * this.world.main.length, z.u1 * this.world.main.length]);
+    for (const child of L.group.children) if (child instanceof THREE.Light)
+      this.daylight.push({ light: child, intensity: child.intensity, inside: child === this.sun ? .06 : .22 });
+    this.scene.add(this.caveHeadlamp, this.caveHeadlamp.target);
     this.boxes = new ItemBoxes(def, this.world.main);
     this.coins = new Coins(def, this.world.main);
     this.scene.add(this.boxes.group, this.coins.mesh);
@@ -478,6 +487,7 @@ export class RaceSession {
     this.wheels.update();
     this.updateGhost(dt);
     this.updateCamera(dt, alpha, inp.lookBack);
+    this.updateCaveLighting(dt);
     this.updateAudio();
     this.ambientParticles(dt);
     this.fx.update(this.time);
@@ -1090,9 +1100,26 @@ export class RaceSession {
     }
   }
 
+  private updateCaveLighting(dt: number) {
+    const b = this.player.body;
+    let target = 0;
+    if (b.onPath === 0) for (const [start, end] of this.caveRanges) {
+      const distance = Math.min(b.progressS - start, end - b.progressS);
+      target = Math.max(target, THREE.MathUtils.smoothstep(distance, 0, 12));
+    }
+    this.caveMix += (target - this.caveMix) * (1 - Math.exp(-dt * 6));
+    for (const { light, intensity, inside } of this.daylight)
+      light.intensity = intensity * THREE.MathUtils.lerp(1, inside, this.caveMix);
+    this.caveHeadlamp.intensity = 75 * this.caveMix;
+    this.caveHeadlamp.position.set(b.x, b.y + 1.3, b.z);
+    const path = this.world.paths[b.onPath] ?? this.world.main;
+    path.pointAt(b.proj.s + 18, 0, this.caveHeadlamp.target.position, 1.1);
+  }
+
   private ambientParticles(dt: number) {
     const kind = this.world.theme.particles;
     if (!kind) return;
+    if (this.caveMix > .4 && ['snow', 'leaves', 'petals'].includes(kind)) return;
     this.ambientT -= dt;
     if (this.ambientT > 0) return;
     this.ambientT = kind === 'snow' ? 0.02 : 0.06;

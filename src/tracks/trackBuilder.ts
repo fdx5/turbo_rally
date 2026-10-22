@@ -13,6 +13,7 @@ import { buildDressing } from './dressing';
 import { boostPadGeometry } from './boostPads';
 import { buildAdventureWorld } from './adventureWorld';
 import { roadClearance } from './roadClearance';
+import { cavernGeometry, cavernMaterial } from './cavern';
 import { backgroundRelief, buildLandscape, groundDetail, landscapeMaterial } from './landscape';
 
 const SURF: Record<SurfaceName | 'road', Surface> = {
@@ -974,37 +975,16 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         glow: 1.8,
       });
     }
-    // shell
-    const shell: THREE.BufferGeometry[] = [];
-    const segs = 14;
-    const r0 = Math.floor(s0 / main.ds);
-    const r1 = Math.floor(s1 / main.ds);
-    for (let k = 0; k < segs; k++) {
-      const a0 = (k / segs) * Math.PI;
-      const a1 = ((k + 1) / segs) * Math.PI;
-      const g = ribbon(
-        main,
-        (i) => Math.cos(a0) * (main.halfW[i] + main.shoulderL[i] + 1.8),
-        (i) => Math.cos(a1) * (main.halfW[i] + main.shoulderL[i] + 1.8),
-        0,
-        { range: [r0, r1] },
-      );
-      if (!g) continue;
-      // lift by sin(angle)*radius
-      const pos = g.attributes.position as THREE.BufferAttribute;
-      for (let v = 0; v < pos.count; v++) {
-        const side = v % 2;
-        const a = side ? a1 : a0;
-        const i = main.wrap(r0 + Math.floor(v / 2));
-        pos.setY(v, pos.getY(v) + Math.sin(a) * (main.halfW[i] + main.shoulderL[i] + 1.8) * 0.75);
-      }
-      g.deleteAttribute('uv');
-      g.computeVertexNormals();
-      shell.push(g);
-    }
-    if (shell.length) {
-      const m = new THREE.Mesh(mergeGeometries(shell), toon({ color: '#3E3566', side: THREE.DoubleSide }));
-      group.add(m);
+    const shell = new THREE.Mesh(cavernGeometry(main, paths, s0, s1, '#45405B'), cavernMaterial());
+    shell.name = 'exploration-cavern';
+    shell.castShadow = true;
+    shell.receiveShadow = true;
+    group.add(shell);
+    for (const u of [.25, .75]) {
+      const p = main.pointAt(s0 + (s1 - s0) * u, 0, new THREE.Vector3(), 9);
+      const lamp = new THREE.PointLight('#9EDBE7', 110, 95, 1.2);
+      lamp.position.copy(p);
+      group.add(lamp);
     }
     group.add(b.build({ outline: false }));
   }

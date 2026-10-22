@@ -45,7 +45,7 @@ export class ChaseCam {
     world?.group?.updateMatrixWorld(true);
     world?.group?.traverse((object) => {
       const mesh = object as THREE.Mesh;
-      if (mesh.isMesh && (mesh.name === 'road' || mesh.name === 'launch-ramp')) {
+      if (mesh.isMesh && ['road', 'launch-ramp', 'exploration-cavern'].includes(mesh.name)) {
         const matrix = mesh.matrixWorld.clone();
         this.roadMeshes.push({
           bvh: new MeshBVH(mesh.geometry, { indirect: true }),

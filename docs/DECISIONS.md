@@ -1,5 +1,20 @@
 # Decisions
 
+- **Opaque cave vaults and enclosed lighting (2026-10-22):** scenery conversion had
+  replaced a double-sided cave material with a front-sided material, culling the
+  entire roof from inside. Crossing-clearance pruning also removed roof triangles.
+  All adventure caves and tunnel sections now use one shared 2.2 m thick vault,
+  floor and portal-annulus builder with an opaque, double-sided standard material.
+  The central crown is continuous; crossing decks raise the chamber instead of
+  cutting its roof, while side portals/floor relief keep every route unobstructed.
+  Roof formations follow the actual chamber height. Vaults cast shadows, camera
+  collision includes their surfaces, and cave entry fades daylight into guide
+  reflectors, local crystal lights and a road-following headlamp. Outdoor snowfall
+  and leaves stop inside enclosed sections.
+  Validation: 138 tests, build/typecheck/secrets checks, and browser inspection of
+  all 16 maps: 19 cave/tunnel sections on 13 maps, 855 roof rays, 38 drive/roof views,
+  no missing crowns or blocked driving routes (`tools/qa/cavern-review.mjs`).
+
 - **Steep-descent camera and natural scenery (2026-10-22):** camera height previously
   followed the kart without accounting for the higher road behind it on a descent.
   The chase and rear-view pitch now follow the occupied road's grade. Camera clearance
