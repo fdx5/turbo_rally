@@ -30,6 +30,7 @@ interface ProfileState {
   server: boolean;
   busy: boolean;
   load: () => Promise<void>;
+  refresh: () => void;
   save: () => void;
   mutate: (fn: (p: Profile) => void) => void;
   raceStart: (trackId: string, mode: string, difficulty: string) => Promise<{ raceId: string; token: string | null; t0: number }>;
@@ -77,6 +78,16 @@ export const useProfile = create<ProfileState>((set, get) => ({
     }
     set({ profile: guest, member: false, loaded: true });
     get().save();
+  },
+  refresh() {
+    if (!get().loaded) return;
+    const current = get().profile;
+    // refreshDaily replaces daily/weekly objects and only mutates attendance's flag.
+    const p = { ...current, attendance: { ...current.attendance } };
+    if (refreshDaily(p)) {
+      set({ profile: p });
+      get().save();
+    }
   },
   save() {
     if (!get().member) idbSet(KEY, get().profile);
@@ -253,6 +264,8 @@ export const useProfile = create<ProfileState>((set, get) => ({
       /* ignore */
     }
     const guest = (await idbGet<Profile>(KEY)) ?? newProfile(uid());
+    refreshDaily(guest);
     set({ profile: guest, member: false });
+    get().save();
   },
 }));

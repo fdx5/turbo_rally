@@ -13,12 +13,29 @@ import { Modal } from './common';
 import { audio } from '../audio/engine';
 import { useSettings } from '../core/settings';
 import { isMobile } from '../core/renderer';
+import { useProfile } from '../net/profileStore';
 
 export function App() {
   const screen = useApp((s) => s.screen);
   const modal = useApp((s) => s.modal);
   const set = useApp((s) => s.set);
   const playStart = useRef(Date.now());
+  // Reset daily buttons at midnight and immediately after returning to the game.
+  useEffect(() => {
+    const refresh = () => useProfile.getState().refresh();
+    refresh();
+    const id = setInterval(refresh, 1000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
+  useEffect(() => {
+    useProfile.getState().refresh();
+  }, [screen, modal]);
   // UI hover/click sounds for every jelly button & card
   useEffect(() => {
     let lastHover: Element | null = null;

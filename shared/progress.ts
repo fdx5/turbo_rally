@@ -92,9 +92,12 @@ export interface Profile {
   createdAt: number;
 }
 
-export const today = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// The browser and API must use the same calendar, regardless of the host timezone.
+const DAY_MS = 86400000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+export const today = (d = new Date()) => new Date(d.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 export function weekKey(d = new Date()) {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const t = new Date(today(d) + 'T00:00:00Z');
   const day = t.getUTCDay() || 7;
   t.setUTCDate(t.getUTCDate() + 4 - day);
   const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
@@ -269,7 +272,11 @@ export function refreshDaily(p: Profile, now = new Date()): boolean {
   const d = today(now);
   if (p.daily.date !== d) {
     p.daily = { date: d, missions: pickMissions(DAILY_POOL, p.guestId + d), firstRaceDone: false, roulette: false, discounts: dailyDiscounts(d), ta: {} };
-    p.attendance.claimedToday = p.attendance.last === d;
+    changed = true;
+  }
+  const claimedToday = p.attendance.last === d;
+  if (p.attendance.claimedToday !== claimedToday) {
+    p.attendance.claimedToday = claimedToday;
     changed = true;
   }
   const w = weekKey(now);
@@ -551,8 +558,7 @@ export function claimAttendance(p: Profile, now = new Date()): { day: number; go
   refreshDaily(p, now);
   const d = today(now);
   if (p.attendance.last === d) return '오늘은 이미 출석했어요';
-  const y = new Date(now);
-  y.setDate(y.getDate() - 1);
+  const y = new Date(now.getTime() - DAY_MS);
   const cont = p.attendance.last === today(y);
   p.attendance.streak = cont ? p.attendance.streak + 1 : 1;
   p.attendance.last = d;

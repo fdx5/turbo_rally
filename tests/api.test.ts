@@ -1,5 +1,5 @@
 // API integration test against the local libSQL file DB (no network).
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -105,6 +105,28 @@ describe('api', () => {
     expect((await call('progress/daily', { action: 'attendance' })).status).toBe(400);
     expect((await call('progress/daily', { action: 'roulette' })).status).toBe(200);
     expect((await call('progress/daily', { action: 'roulette' })).status).toBe(400);
+  });
+  it('persists both daily rewards again on the next Korean day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 86400000);
+    try {
+      const daily = await call('progress/daily');
+      expect(daily.json.attendance.claimedToday).toBe(false);
+      expect(daily.json.daily.roulette).toBe(false);
+      const attendance = await call('progress/daily', { action: 'attendance' });
+      expect(attendance.status).toBe(200);
+      expect(attendance.json.result.day).toBe(2);
+      const roulette = await call('progress/daily', { action: 'roulette' });
+      expect(roulette.status).toBe(200);
+      const me = (await call('auth/me')).json.profile;
+      expect(me.attendance.claimedToday).toBe(true);
+      expect(me.daily.roulette).toBe(true);
+      expect(me.gold).toBe(roulette.json.profile.gold);
+      expect((await call('progress/daily', { action: 'attendance' })).status).toBe(400);
+      expect((await call('progress/daily', { action: 'roulette' })).status).toBe(400);
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('guest race is recorded and public records list every racer', async () => {
     const { signToken } = await import('../api/_lib/auth');
