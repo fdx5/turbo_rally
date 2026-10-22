@@ -73,10 +73,7 @@ export function roadTexture(o: { base: string; speck: string; line: string; edge
     for (let x = 0; x < S; x += 256) roundRect(g, x + 32, S / 2 - 11, 144, 22, 8);
     g.globalAlpha = 1;
   }
-  // crisp edge lines
-  g.fillStyle = o.edge;
-  g.fillRect(0, 18, S, 22);
-  g.fillRect(0, S - 40, S, 22);
+  // Edge markings use world-space ribbons so junctions can have clean openings.
   return tex(c, true);
 }
 

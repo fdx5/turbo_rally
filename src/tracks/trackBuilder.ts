@@ -84,19 +84,33 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
   const b = new THREE.Vector3();
   main.pointAt(sc.fromU * L, 0, a);
   main.pointAt(sc.toU * L, 0, b);
-  // extend a few metres along main so ribbons overlap cleanly
+  // Long tangent overlaps prevent tight hooks and folded ribbon edges at joins.
+  const overlap = 24;
   const a0 = new THREE.Vector3();
   const b1 = new THREE.Vector3();
-  main.pointAt(sc.fromU * L - 8, 0, a0);
-  main.pointAt(sc.toU * L + 8, 0, b1);
+  main.pointAt(sc.fromU * L - overlap, 0, a0);
+  main.pointAt(sc.toU * L + overlap, 0, b1);
   const via = sc.via.map(([x, y, z], i): Vec3T => {
     const k = (i + 1) / (sc.via.length + 1);
     return [x, y || a.y + (b.y - a.y) * k, z];
   });
   const pts: Vec3T[] = [[a0.x, a0.y, a0.z], [a.x, a.y, a.z], ...via, [b.x, b.y, b.z], [b1.x, b1.y, b1.z]];
   const p = new TrackPath(pts, false, sc.width, pts.map(() => 0), 1.2);
-  p.mainS0 = sc.fromU * L - 8;
-  p.mainS1 = sc.toU * L + 8;
+  p.mainS0 = sc.fromU * L - overlap;
+  p.mainS1 = sc.toU * L + overlap;
+  // Match the main road plane at both mouths, easing back to a flat shortcut.
+  const join = new Proj();
+  for (let i = 0; i < p.n; i++) {
+    const distance = Math.min(i * p.ds, p.length - i * p.ds);
+    const blend = 1 - THREE.MathUtils.smoothstep(distance, 0, overlap);
+    if (blend <= 0) continue;
+    main.project(p.px[i], p.py[i], p.pz[i], -1, join);
+    p.py[i] += (join.y - p.py[i]) * blend;
+    const h = Math.hypot(join.fx, join.fz) || 1;
+    const gx = join.fx / h * join.fy / h + join.hx * join.bankTan;
+    const gz = join.fz / h * join.fy / h + join.hz * join.bankTan;
+    p.bankTan[i] = (gx * p.hx[i] + gz * p.hz[i]) * blend;
+  }
   p.baseSurface = SURF[sc.surface];
   return p;
 }
@@ -111,7 +125,7 @@ function ribbon(
   tA: (i: number) => number,
   tB: (i: number) => number,
   yOff: number,
-  opts: { uvScale?: number; skipGap?: boolean; color?: (i: number, side: 0 | 1) => THREE.Color | null; range?: [number, number] } = {},
+  opts: { uvScale?: number; skipGap?: boolean; include?: (i: number) => boolean; color?: (i: number, side: 0 | 1) => THREE.Color | null; range?: [number, number] } = {},
 ): THREE.BufferGeometry | null {
   const pos: number[] = [];
   const uv: number[] = [];
@@ -125,7 +139,7 @@ function ribbon(
   const [r0, r1] = opts.range ?? [0, segCount];
   for (let k = r0; k <= r1; k++) {
     const i = path.wrap(k);
-    const valid = !(opts.skipGap && path.gap[i]);
+    const valid = !(opts.skipGap && path.gap[i]) && (!opts.include || opts.include(i));
     if (valid) {
       for (const side of [0, 1] as const) {
         const t = side === 0 ? tA(i) : tB(i);
@@ -303,6 +317,26 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   // ---------- road ----------
   const roadTex = roadTexture(theme.road, def.no);
   const roadMat = toon({ map: roadTex, rim: 0.2 });
+  // Open curb/edge markings where another road joins instead of drawing a stripe across it.
+  const edgeMasks = new Map<TrackPath, Map<number, Uint8Array>>();
+  const edgeVisible = (path: TrackPath, i: number, side: number) => {
+    let sides = edgeMasks.get(path);
+    if (!sides) edgeMasks.set(path, sides = new Map());
+    let mask = sides.get(side);
+    if (!mask) sides.set(side, mask = new Uint8Array(path.n));
+    if (mask[i]) return mask[i] === 1;
+    const t = side * (path.halfW[i] + 0.5);
+    const x = path.px[i] + path.hx[i] * t;
+    const z = path.pz[i] + path.hz[i] * t;
+    const y = path.py[i] + t * path.bankTan[i];
+    for (const other of paths) {
+      if (other === path) continue;
+      other.project(x, y, z, -1, tmpProj);
+      if (!tmpProj.gap && tmpProj.dist2 < (tmpProj.halfW + 0.8) ** 2 && Math.abs(tmpProj.y - y) < 1.2) { mask[i] = 2; return false; }
+    }
+    mask[i] = 1;
+    return true;
+  };
   for (const p of paths) {
     const isMain = p === main;
     const surfCol = !isMain && p.baseSurface !== Surface.Road ? surfaceColor(p.baseSurface) : null;
@@ -363,12 +397,28 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         (i) => (side < 0 ? -p.halfW[i] - cw : p.halfW[i]),
         (i) => (side < 0 ? -p.halfW[i] : p.halfW[i] + cw),
         0.04,
-        { skipGap: true, color: (i) => (Math.floor((i * p.ds) / 3) % 2 ? curbA : curbB) },
+        { skipGap: true, include: (i) => edgeVisible(p, i, side), color: (i) => (Math.floor((i * p.ds) / 3) % 2 ? curbA : curbB) },
       );
       if (!g) continue;
       const m = new THREE.Mesh(g, toon({ vertexColors: true, rim: 0.3 }));
       m.receiveShadow = true;
+      m.name = 'curb';
       group.add(m);
+      // A dark keyline and bright inset stay legible on grass, snow and night scenery.
+      for (const [width, inset, color, lift] of [
+        [0.55, 0.15, '#293445', 0.045],
+        [0.22, 0.30, theme.road.edge, 0.055],
+      ] as const) {
+        const marking = ribbon(p,
+          (i) => side * (p.halfW[i] - inset) - width / 2,
+          (i) => side * (p.halfW[i] - inset) + width / 2,
+          lift, { skipGap: true, include: (i) => edgeVisible(p, i, side) });
+        if (marking) {
+          const line = new THREE.Mesh(marking, new THREE.MeshBasicMaterial({ color }));
+          line.name = 'road-edge';
+          group.add(line);
+        }
+      }
     }
   }
   if (theme.road.glowEdge) {
@@ -477,11 +527,13 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   const lowY = def.water ? waterY - 4 : minY - 30;
   const hills = (x: number, z: number) =>
     (Math.sin(x * 0.011 + 1.3) * Math.cos(z * 0.013) * 0.5 + 0.5) * 14 + Math.sin(x * 0.031 + z * 0.027) * 2;
-  const groundHeight = (x: number, z: number): number => {
+  let groundHeight = (x: number, z: number): number => {
     const nr = nearest(x, z);
     const p = nr.path;
     const i = nr.i;
-    const roadY = p.py[i];
+    // Terrain must clear the LOWER banked shoulder, not just the road centre.
+    const outer = p.halfW[i] + Math.max(p.shoulderL[i], p.shoulderR[i]) + 1.5;
+    const roadY = p.py[i] - Math.abs(p.bankTan[i]) * outer;
     const d = nr.d - (p.halfW[i] + Math.max(p.shoulderL[i], p.shoulderR[i]));
     let h: number;
     const sideLow = p === main && (lowSides(i, nr.side) || inBridge(i * p.ds) || p.gap[i] === 1);
@@ -523,6 +575,27 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
       if (def.water && h < waterY + 1.6) tmp.lerp(sandC, THREE.MathUtils.smoothstep(h, waterY + 1.6, waterY + 0.2));
       cols.set([tmp.r, tmp.g, tmp.b], k * 3);
     }
+    // Each terrain triangle spans several metres. Lower every vertex of cells touching
+    // a road corridor so coarse terrain cannot interpolate up through banked turns/hills.
+    const spacing = size / res;
+    const margin = Math.SQRT2 * spacing;
+    for (const p of paths) {
+      for (let i = 0; i < p.n; i += 2) {
+        const reach = p.halfW[i] + Math.max(p.shoulderL[i], p.shoulderR[i]) + margin;
+        const cap = p.py[i] - Math.abs(p.bankTan[i]) * (reach - margin + 1.5) - 1.0;
+        const ix = Math.round((p.px[i] - centre.x + size / 2) / spacing);
+        const iz = Math.round((p.pz[i] - centre.z + size / 2) / spacing);
+        const cells = Math.ceil(reach / spacing);
+        for (let row = Math.max(0, iz - cells); row <= Math.min(res, iz + cells); row++) {
+          for (let col = Math.max(0, ix - cells); col <= Math.min(res, ix + cells); col++) {
+            const k = row * (res + 1) + col;
+            if ((pos.getX(k) - p.px[i]) ** 2 + (pos.getZ(k) - p.pz[i]) ** 2 <= reach * reach) {
+              pos.setY(k, Math.min(pos.getY(k), cap));
+            }
+          }
+        }
+      }
+    }
     g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
     g.computeVertexNormals();
     const gt = groundTexture(def.no);
@@ -531,6 +604,17 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     ground.receiveShadow = true;
     ground.name = 'ground';
     group.add(ground);
+    // Props and road verges must sit on the final triangles, including clearance cuts.
+    groundHeight = (x, z) => {
+      const gx = THREE.MathUtils.clamp((x - centre.x + size / 2) / spacing, 0, res - 0.00001);
+      const gz = THREE.MathUtils.clamp((z - centre.z + size / 2) / spacing, 0, res - 0.00001);
+      const col = Math.floor(gx), row = Math.floor(gz);
+      const u = gx - col, v = gz - row;
+      const a = row * (res + 1) + col, b = a + res + 1, d = a + 1, c = b + 1;
+      return u + v <= 1
+        ? pos.getY(a) + u * (pos.getY(d) - pos.getY(a)) + v * (pos.getY(b) - pos.getY(a))
+        : pos.getY(c) + (1 - u) * (pos.getY(b) - pos.getY(c)) + (1 - v) * (pos.getY(d) - pos.getY(c));
+    };
     if (def.water) {
       water = buildWater(def.water.color, size, waterY, centre);
       group.add(water);
@@ -545,11 +629,34 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     group.add(cloudSea);
   }
 
+  // Taper the verge into the terrain; bridges/sky roads have a solid, shallow deck edge.
+  const vergeMat = toon({ color: new THREE.Color(theme.shoulder).multiplyScalar(0.72), rim: 0.1, side: THREE.DoubleSide });
+  for (const path of paths) {
+    for (const side of [-1, 1]) {
+      const g = ribbon(path,
+        (i) => side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 1.5),
+        (i) => side * (path.halfW[i] + (side < 0 ? path.shoulderL[i] : path.shoulderR[i]) + 3.2),
+        -0.025, { skipGap: true });
+      if (!g) continue;
+      const pos = g.attributes.position as THREE.BufferAttribute;
+      for (let v = 1; v < pos.count; v += 2) {
+        const topY = pos.getY(v - 1);
+        const bridge = def.voidWorld || (path === main && inBridge(path.project(pos.getX(v), topY, pos.getZ(v), -1, tmpProj).s));
+        pos.setY(v, bridge ? topY - 1.6 : Math.min(topY - 0.25, groundHeight(pos.getX(v), pos.getZ(v)) - 0.08));
+      }
+      g.computeVertexNormals();
+      const mesh = new THREE.Mesh(g, vergeMat);
+      mesh.name = 'road-foundation';
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+  }
+
   // ---------- bridge decks / void decks / pillars ----------
   {
     const b = new MeshBuilder();
     b.detail = 0.7;
-    const deckRanges: [number, number][] = def.voidWorld ? [[0, main.n - 1]] : bridgeRanges.map(([a, c]) => [Math.floor(a / main.ds), Math.floor(c / main.ds)]);
+    const deckRanges: [number, number][] = def.voidWorld ? [[0, main.n]] : bridgeRanges.map(([a, c]) => [Math.floor(a / main.ds), Math.floor(c / main.ds)]);
     for (const [a, c] of deckRanges) {
       const g = ribbon(main, (i) => -main.halfW[i] - main.shoulderL[i] - 1.2, (i) => main.halfW[i] + main.shoulderR[i] + 1.2, -1.6, { range: [a, c], skipGap: true });
       if (g) {

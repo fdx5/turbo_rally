@@ -138,7 +138,7 @@ export class TrackPath {
       this.hx[i] = -dz / hl;
       this.hz[i] = dx / hl;
       // interpolate per-control-point width & bank
-      const u = i / n;
+      const u = i / (closed ? n : n - 1);
       const cpF = u * (closed ? cps : cps - 1);
       const c0 = Math.floor(cpF) % cps;
       const c1 = (c0 + 1) % cps;
@@ -199,9 +199,10 @@ export class TrackPath {
     const x = this.px[i0] + (this.px[i1] - this.px[i0]) * k;
     const y = this.py[i0] + (this.py[i1] - this.py[i0]) * k;
     const z = this.pz[i0] + (this.pz[i1] - this.pz[i0]) * k;
-    const hx = this.hx[i0];
-    const hz = this.hz[i0];
-    out.set(x + hx * t, y + t * this.bankTan[i0] + lift + this.rampHeight(s, t), z + hz * t);
+    const hx = this.hx[i0] + (this.hx[i1] - this.hx[i0]) * k;
+    const hz = this.hz[i0] + (this.hz[i1] - this.hz[i0]) * k;
+    const bank = this.bankTan[i0] + (this.bankTan[i1] - this.bankTan[i0]) * k;
+    out.set(x + hx * t, y + t * bank + lift + this.rampHeight(s, t), z + hz * t);
     return out;
   }
   headingAt(s: number) {
@@ -284,23 +285,36 @@ export class TrackPath {
     const hl = Math.hypot(hx, hz) || 1;
     out.hx = hx / hl;
     out.hz = hz / hl;
-    out.fx = this.fx[i0];
-    out.fy = this.fy[i0];
-    out.fz = this.fz[i0];
+    // Surface tangent includes the ramp, so wheels follow its incline too.
+    const horizontal = Math.sqrt(al);
+    let grade = (this.py[i1] - this.py[i0]) / horizontal;
     out.idx = f > 0.5 ? i1 : i0;
     out.f = f;
     out.s = (i0 + f) * this.ds;
     if (this.closed && i1 === 0 && i0 === n - 1) out.s = (n - 1 + f) * this.ds;
     out.t = (x - cx) * out.hx + (z - cz) * out.hz;
-    out.dist2 = bestD;
-    out.bankTan = this.bankTan[i0];
+    out.dist2 = (x - cx) ** 2 + (z - cz) ** 2;
+    out.bankTan = this.bankTan[i0] + (this.bankTan[i1] - this.bankTan[i0]) * f;
     out.y = cy + out.t * out.bankTan + this.rampHeight(out.s, out.t);
-    out.halfW = this.halfW[i0];
-    out.limitL = this.halfW[i0] + this.shoulderL[i0];
-    out.limitR = this.halfW[i0] + this.shoulderR[i0];
+    grade += out.t * (this.bankTan[i1] - this.bankTan[i0]) / horizontal;
+    for (const ramp of this.ramps) {
+      if (out.s >= ramp.s0 && out.s <= ramp.s1 && out.t >= ramp.t0 && out.t <= ramp.t1) {
+        const k = (out.s - ramp.s0) / (ramp.s1 - ramp.s0);
+        grade += ramp.h / (ramp.s1 - ramp.s0) * (k < 0.3 ? 2 * k / 0.3 : 1);
+        break;
+      }
+    }
+    const tangentLength = Math.sqrt(1 + grade * grade);
+    out.fx = ax / horizontal / tangentLength;
+    out.fy = grade / tangentLength;
+    out.fz = az / horizontal / tangentLength;
+    out.halfW = this.halfW[i0] + (this.halfW[i1] - this.halfW[i0]) * f;
+    out.limitL = out.halfW + this.shoulderL[i0] + (this.shoulderL[i1] - this.shoulderL[i0]) * f;
+    out.limitR = out.halfW + this.shoulderR[i0] + (this.shoulderR[i1] - this.shoulderR[i0]) * f;
     out.wallL = this.wallL[i0] === 1;
     out.wallR = this.wallR[i0] === 1;
-    out.gap = this.gap[i0] === 1;
+    // A rendered segment is absent when either endpoint belongs to a gap.
+    out.gap = this.gap[i0] === 1 || this.gap[i1] === 1;
     return out;
   }
 

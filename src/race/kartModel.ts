@@ -8,6 +8,7 @@ import type { KartBody } from '../physics/kart';
 import { MT_LEVELS } from '../physics/kart';
 import type { FX } from '../art/particles';
 import { PShape } from '../art/textures';
+import { groundPose } from './groundPose';
 
 const RAINBOW = ['#FFADAD', '#FFD6A5', '#FDFFB6', '#B9FBC0', '#A2D2FF', '#CDB4DB'];
 
@@ -167,15 +168,20 @@ export class KartModel {
     if (dy > Math.PI) dy -= Math.PI * 2;
     if (dy < -Math.PI) dy += Math.PI * 2;
     const yaw = b.pyaw + dy * alpha;
-    this.root.position.set(x, y, z);
+    this.root.position.set(x, y + 0.06, z);
     this.root.rotation.y = yaw;
     // pitch / roll from the ground ribbon
     const pr = b.proj;
-    const targetPitch = b.grounded ? -Math.asin(Math.max(-0.5, Math.min(0.5, pr.fy))) * Math.cos(yaw - Math.atan2(pr.fx, pr.fz)) : -b.vy * 0.012;
-    const targetRoll = b.grounded ? Math.atan(pr.bankTan) * Math.cos(yaw - Math.atan2(pr.fx, pr.fz)) : 0;
-    this.inner.rotation.x += (targetPitch - this.inner.rotation.x) * Math.min(1, dt * 10);
-    this.inner.rotation.z += (targetRoll - this.inner.rotation.z) * Math.min(1, dt * 10);
-    this.inner.rotation.y = b.driftVisual + b.spinAngle;
+    const pose = groundPose(pr, yaw);
+    const targetPitch = b.grounded ? pose.pitch : -b.vy * 0.012;
+    const targetRoll = b.grounded ? pose.roll : 0;
+    // Fit the wheels immediately on contact; smoothing here buries them in changing slopes.
+    const blend = b.grounded ? 1 : 1 - Math.exp(-dt * 10);
+    this.inner.rotation.x += (targetPitch - this.inner.rotation.x) * blend;
+    this.inner.rotation.z += (targetRoll - this.inner.rotation.z) * blend;
+    this.inner.rotation.y = 0;
+    // Drift/spin around the fitted road normal, preserving contact on banked corners.
+    this.vehicle.root.rotation.y = b.driftVisual + b.spinAngle;
     // scale: shrink / squash / star scale
     this.scaleTarget = (b.shrinkT > 0 ? 0.6 : 1) * (b.starScale > 1 && b.starT > 0 ? b.starScale : 1);
     this.sc += (this.scaleTarget - this.sc) * Math.min(1, dt * 8);

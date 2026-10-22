@@ -63,7 +63,8 @@ export class WheelPool {
     for (const { v } of this.list) {
       if (seen.has(v)) continue;
       seen.add(v);
-      v.root.updateMatrixWorld(true);
+      // Parent kart pose changed this frame; update ancestors before instancing wheels.
+      v.root.updateWorldMatrix(true, true);
       for (const w of v.wheels) {
         _s.makeScale(w.spec.w, w.spec.r, w.spec.r);
         _m.multiplyMatrices(w.spin.matrixWorld, _s);

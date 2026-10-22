@@ -134,7 +134,7 @@ export const TRACKS: TrackDef[] = [
     itemRows: [0.13, 0.33, 0.58, 0.82],
     coins: [{ u: 0.02, t: -3, n: 5 }, { u: 0.27, t: 0, n: 5 }, { u: 0.45, t: 3, n: 5 }, { u: 0.75, t: -3, n: 5 }],
     zones: [],
-    shortcuts: [{ fromU: 0.19, toU: 0.4, via: [P(118, 88), P(84, 124), P(60, 150)], width: 7, surface: 'road', boostPad: true }],
+    shortcuts: [{ fromU: 0.19, toU: 0.4, via: [P(118, 88), P(84, 124)], width: 7, surface: 'road', boostPad: true }],
     hazards: [
       { type: 'kite', u: 0.3, period: 3.6 },
       { type: 'kite', u: 0.9, period: 4.4 },
@@ -178,7 +178,7 @@ export const TRACKS: TrackDef[] = [
     zones: [{ u0: 0.27, u1: 0.36, t0: -11, t1: 11, surface: 'ice' }, { u0: 0.74, u1: 0.8, t0: -11, t1: 11, surface: 'ice' }],
     bridge: [{ u0: 0.6, u1: 0.68 }],
     noWall: [{ u0: 0.61, u1: 0.67, side: 'both' }],
-    shortcuts: [{ fromU: 0.47, toU: 0.56, via: [P(80, 160, 4)], width: 8, surface: 'dirt', boostPad: true }],
+    shortcuts: [{ fromU: 0.47, toU: 0.56, via: [[60, 3.6, 210]], width: 8, surface: 'dirt', boostPad: true }],
     hazards: [
       { type: 'downhill', model: 'snowball', u0: 0.18, u1: 0.26, interval: 3, radius: 2.0 },
       { type: 'roller', model: 'snowball', u: 0.86, period: 4.6, radius: 2.0 },
@@ -200,7 +200,7 @@ export const TRACKS: TrackDef[] = [
     coins: [{ u: 0.03, t: -3, n: 5 }, { u: 0.22, t: 3, n: 5 }, { u: 0.52, t: 0, n: 6 }, { u: 0.9, t: 0, n: 5 }],
     zones: [{ u0: 0.6, u1: 0.72, t0: 6, t1: 30, surface: 'sand' }],
     noWall: [{ u0: 0.46, u1: 0.52, side: 'R' }],
-    shortcuts: [{ fromU: 0.86, toU: 0.98, via: [P(-118, 70), P(-80, 20)], width: 8, surface: 'sand', boostPad: true }],
+    shortcuts: [{ fromU: 0.86, toU: 0.98, via: [[-130, 0, 42], [-80, 0, 12]], width: 8, surface: 'sand', boostPad: true }],
     hazards: [
       { type: 'wave', u0: 0.14, u1: 0.24, period: 6 },
       { type: 'downhill', model: 'tangerine', u0: 0.62, u1: 0.7, interval: 2.2, radius: 1.3 },
@@ -218,7 +218,7 @@ export const TRACKS: TrackDef[] = [
     ],
     width: 18,
     boostPads: [{ u: 0.12, t: 0 }, { u: 0.33, t: 0 }, { u: 0.58, t: 0 }, { u: 0.88, t: 0 }],
-    ramps: [{ u: 0.36, len: 10, h: 2.6, t0: -8, t1: 8 }, { u: 0.62, len: 10, h: 2.6, t0: -8, t1: 8 }],
+    ramps: [{ u: 0.369, len: 10, h: 3.4, t0: -8, t1: 8 }, { u: 0.624, len: 10, h: 3.4, t0: -8, t1: 8 }],
     itemRows: [0.08, 0.27, 0.5, 0.76],
     coins: [{ u: 0.04, t: 0, n: 6 }, { u: 0.2, t: -3, n: 5 }, { u: 0.46, t: 3, n: 5 }, { u: 0.82, t: 0, n: 6 }],
     zones: [],

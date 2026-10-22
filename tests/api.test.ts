@@ -4,6 +4,7 @@ import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Readable } from 'node:stream';
+import { priceOf } from '../shared/progress';
 
 process.env.TURSO_DATABASE_URL = '';
 process.env.TR_LOCAL_DB = 'test.db';
@@ -89,6 +90,7 @@ describe('api', () => {
     expect((await call('race/finish', body)).status).toBe(409);
   });
   it('shop buy deducts gold & equip works; insufficient gold rejected', async () => {
+    const price = priceOf((await call('auth/me')).json.profile, 'hat_01');
     const b = await call('shop/buy', { itemId: 'hat_01' });
     expect(b.status).toBe(200);
     expect(b.json.profile.inventory).toContain('hat_01');
@@ -96,7 +98,7 @@ describe('api', () => {
     const e = await call('shop/equip', { charId: 'momo', itemId: 'hat_01', cat: 'hat' });
     expect(e.json.profile.equipment.momo.hat).toBe('hat_01');
     const led = await call('dashboard/ledger');
-    expect(led.json.ledger.some((l: { delta: number }) => l.delta === -1000)).toBe(true);
+    expect(led.json.ledger.some((l: { delta: number; ref_id: string }) => l.ref_id === 'hat_01' && l.delta === -price!)).toBe(true);
   });
   it('attendance & roulette once per day', async () => {
     expect((await call('progress/daily', { action: 'attendance' })).status).toBe(200);

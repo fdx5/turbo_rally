@@ -159,6 +159,9 @@ export class KartBody {
     this.hints.fill(-1);
     this.hints[0] = i;
     this.onPath = 0;
+    m.project(this.x, this.y, this.z, i, this.proj);
+    this.y = this.proj.y;
+    this.py = this.y;
     this.lastGroundY = this.y;
     this.grounded = true;
     this.progressS = ((s % m.length) + m.length) % m.length;
@@ -457,9 +460,10 @@ export class KartBody {
       p.project(this.x, this.y, this.z, hint, pr, k === 0 ? 40 : 30);
       this.hints[k] = pr.idx;
       const lim = pr.t < 0 ? pr.limitL : pr.limitR;
-      const inside = Math.abs(pr.t) <= lim && !pr.gap && Math.abs(pr.y - this.y) < 6;
+      const reachable = pr.y - this.y <= (this.grounded ? 1.2 : 0.6);
+      const inside = pr.dist2 <= lim * lim && !pr.gap && reachable;
       if (k > 0 && (pr.s < 0.5 || pr.s > p.length - 0.5)) continue;
-      const score = inside ? Math.abs(pr.t) / lim : 10 + Math.abs(pr.t) - lim;
+      const score = inside ? Math.abs(pr.t) / lim + Math.abs(pr.y - this.y) * 0.02 : 10 + Math.sqrt(pr.dist2) - lim + Math.abs(pr.y - this.y);
       if (score < bestScore) {
         bestScore = score;
         best = k;
@@ -493,7 +497,11 @@ export class KartBody {
     if (surf === Surface.Choco || surf === Surface.Sand) this.offroad = true;
     this.surface = surf;
     if (pr.gap) return null;
+    // Never pull a falling kart through the underside of a bridge or an unrelated path.
+    if (pr.y - this.y > (this.grounded ? 1.2 : 0.6)) return null;
+    if (!p.closed && (pr.s < 0.001 || pr.s > p.length - 0.001) && pr.dist2 > pr.t * pr.t + 0.25) return null;
     if (absT > lim) {
+      if (this.y > pr.y + 1.6) return null;
       if (wall && !this.isInsideOther(world, best)) {
         // push back inside & bounce
         const sgn = Math.sign(pr.t);
@@ -512,6 +520,8 @@ export class KartBody {
           const back = wrapAngle(pathYaw + (this.speed < 0 ? Math.PI : 0) - this.yaw);
           this.yaw += back * clamp(into, 0, 1) * 0.35;
         }
+        // Reproject after the push: banked walls have a different height at the corrected position.
+        p.project(this.x, this.y, this.z, pr.idx, pr, 4);
         return pr.y;
       }
       if (!wall) return null;
@@ -525,7 +535,7 @@ export class KartBody {
       const pr = tmp;
       p.project(this.x, this.y, this.z, this.hints[k], pr, 20);
       const lim = pr.t < 0 ? pr.limitL : pr.limitR;
-      if (Math.abs(pr.t) <= lim && !pr.gap && (k === 0 || (pr.s > 0.5 && pr.s < p.length - 0.5))) return true;
+      if (pr.dist2 <= lim * lim && !pr.gap && Math.abs(pr.y - this.y) < 2 && (k === 0 || (pr.s > 0.5 && pr.s < p.length - 0.5))) return true;
     }
     return false;
   }
