@@ -13,6 +13,7 @@ import { buildDressing } from './dressing';
 import { boostPadGeometry } from './boostPads';
 import { buildAdventureWorld } from './adventureWorld';
 import { roadClearance } from './roadClearance';
+import { backgroundRelief, buildLandscape, groundDetail, landscapeMaterial } from './landscape';
 
 const SURF: Record<SurfaceName | 'road', Surface> = {
   road: Surface.Road,
@@ -704,8 +705,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   const inBridge = (s: number) => bridgeRanges.some(([a, b]) => s >= a && s <= b);
   const waterY = def.water?.y ?? -100;
   const lowY = def.water ? waterY - 4 : minY - 30;
-  const hills = (x: number, z: number) =>
-    (Math.sin(x * 0.011 + 1.3) * Math.cos(z * 0.013) * 0.5 + 0.5) * 14 + Math.sin(x * 0.031 + z * 0.027) * 2;
+  const hills = (x: number, z: number) => backgroundRelief(def.theme, x, z);
   let groundHeight = (x: number, z: number): number => {
     const nr = nearest(x, z);
     const p = nr.path;
@@ -747,7 +747,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   let water: THREE.Mesh | null = null;
   if (!def.voidWorld) {
     const size = radius * 2 + 900;
-    const res = 240;
+    const res = quality.props < .7 ? 200 : quality.props < 1 ? 256 : 320;
     const g = new THREE.PlaneGeometry(size, size, res, res).rotateX(-Math.PI / 2);
     const pos = g.attributes.position as THREE.BufferAttribute;
     const cols = new Float32Array(pos.count * 3);
@@ -793,9 +793,24 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
     }
     g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
     g.computeVertexNormals();
+    // Exposed slopes show mineral colour; flatter ground retains soil/snow/vegetation.
+    const normals = g.attributes.normal;
+    const mineral = new THREE.Color(
+      ['icecream', 'antarctic'].includes(def.theme) ? '#819EAF' :
+      ['desert', 'canyon', 'volcano'].includes(def.theme) ? '#9B7866' : '#758176');
+    for (let k = 0; k < pos.count; k++) {
+      const slope = THREE.MathUtils.smoothstep(1 - normals.getY(k), .12, .65) * .6;
+      tmp.fromArray(cols, k * 3).lerp(mineral, slope);
+      cols.set([tmp.r, tmp.g, tmp.b], k * 3);
+    }
     const gt = groundTexture(def.no);
     gt.repeat.set(size / 24, size / 24);
-    const ground = new THREE.Mesh(g, toon({ vertexColors: true, map: gt, rim: 0.05 }));
+    const groundMat = landscapeMaterial(def.theme, gt);
+    const detail = groundDetail(def.theme, def.no);
+    detail.repeat.set(size / 16, size / 16);
+    groundMat.bumpMap = detail;
+    groundMat.bumpScale = ['icecream', 'antarctic'].includes(def.theme) ? .12 : .24;
+    const ground = new THREE.Mesh(g, groundMat);
     ground.receiveShadow = true;
     ground.name = 'ground';
     group.add(ground);
@@ -816,7 +831,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
         : pos.getY(c) + (1 - u) * (pos.getY(b) - pos.getY(c)) + (1 - v) * (pos.getY(d) - pos.getY(c));
     };
     if (def.water) {
-      water = buildWater(def.water.color, size, waterY, centre);
+      water = buildWater(def.water.color, size, waterY, centre, theme, def.theme === 'volcano');
       group.add(water);
     }
   } else {
@@ -1047,6 +1062,7 @@ export function buildTrackWorld(def: TrackDef, quality: { props: number; outline
   // ---------- circuit dressing (grandstands, gantries, tyre walls, flags) ----------
   group.add(buildDressing(def, theme, main, groundHeight, paths));
   group.add(buildAdventureWorld(def, paths, theme, groundHeight));
+  group.add(buildLandscape(def, theme, paths, centre, radius, groundHeight, quality.props));
 
   // ---------- sky ----------
   const sky = buildSky(theme);
@@ -1253,7 +1269,7 @@ function scatterProps(
     }
   }
   const out: { mesh: THREE.Object3D; outline: THREE.Object3D | null; centre: THREE.Vector3 }[] = [];
-  const solidMat = toon({ vertexColors: true });
+  const solidMat = landscapeMaterial(def.theme);
   const glowMat = glow(0xffffff, 1, true);
   for (const bk of buckets.values()) {
     const g = new THREE.Group();
@@ -1405,6 +1421,7 @@ function buildRamp(
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.computeVertexNormals();
   const m = new THREE.Mesh(g, toon({ vertexColors: true, side: THREE.DoubleSide }));
+  m.name = 'launch-ramp';
   m.castShadow = true;
   m.receiveShadow = true;
   return m;

@@ -1,5 +1,22 @@
 # Decisions
 
+- **Steep-descent camera and natural scenery (2026-10-22):** camera height previously
+  followed the kart without accounting for the higher road behind it on a descent.
+  The chase and rear-view pitch now follow the occupied road's grade. Camera clearance
+  samples that route and the terrain, then shortens the boom against both sides of the
+  actual rendered road/ramp triangles, including the lens corners. An indirect BVH
+  preserves render geometry and avoids smoothing discrepancies at banked branch joins.
+  Recheck clearance after shortening over a crest; never pull the camera onto an overhead deck.
+  All sixteen biomes gain continuous distant ranges, multi-scale relief, granular bump
+  maps, slope-dependent mineral colours, physically lit scenery, and spatially batched
+  rocks/vegetation. Sand ripples, ice cracks, layered rock, natural tree crowns, soft
+  high clouds and Fresnel/sun water reflections add depth. Lava keeps its own emissive
+  flow. Generic green mesas/waterfalls are restricted to the appropriate river/island
+  biomes. Terrain resolution and detail density follow the selected quality preset.
+  Validation: typecheck/build, 124 tests, all-course terrain intrusion review, and
+  `tools/qa/descent-review.mjs` (main roads plus every branch, forward/rear view,
+  14,700 moving camera poses, no under-road lens or obstructed sightline).
+
 - **Road sightline curtains and expedition soundtrack (2026-10-22):** elevated branch
   skirts previously extended down to terrain, making giant shoulder-coloured walls
   across lower roads (reproduced at the forest start). All deck skirts now stop within

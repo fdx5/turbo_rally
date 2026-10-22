@@ -33,17 +33,32 @@ export function buildSky(theme: ThemeDef): THREE.Mesh {
       uniform float uStars, uAurora, uTime;
       varying vec3 vDir;
       float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+      float cloudNoise(vec2 p) {
+        vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(vec3(i,0.0)),hash(vec3(i+vec2(1,0),0.0)),f.x),
+          mix(hash(vec3(i+vec2(0,1),0.0)),hash(vec3(i+vec2(1,1),0.0)),f.x),f.y);
+      }
       void main() {
         vec3 d = normalize(vDir);
         float h = d.y;
         vec3 col = h > 0.0 ? mix(uHorizon, uTop, pow(smoothstep(0.0, 0.75, h), 0.8)) : mix(uHorizon, uBottom, smoothstep(0.0, -0.25, h));
         float sd = max(dot(d, uSunDir), 0.0);
-        col += uSun * (pow(sd, 400.0) * 1.6 + pow(sd, 18.0) * 0.28);
+        col += uSun * (smoothstep(.99965,.9999,sd)*1.2 + pow(sd,72.0)*.22 + pow(sd,12.0)*.07);
+        // A high, thin cloud deck sits behind the lower cloud billboards.
+        if(h > .035 && uStars < .5) {
+          vec2 cp=d.xz/(h+.24)*2.8+vec2(uTime*.004,0.0);
+          float n=cloudNoise(cp)*.58+cloudNoise(cp*2.1)*.28+cloudNoise(cp*4.3)*.14;
+          float cloud=smoothstep(.53,.78,n)*smoothstep(.035,.22,h)*.55;
+          vec3 litCloud=mix(uHorizon*.88,vec3(1.0,.985,.96),.45+sd*.3);
+          col=mix(col,litCloud,cloud);
+        }
         if (uStars > 0.5 && h > 0.05) {
-          vec3 cell = floor(d * 140.0);
+          vec3 grid = d * 420.0;
+          vec3 cell = floor(grid);
           float r = hash(cell);
           float tw = 0.6 + 0.4 * sin(uTime * 2.0 + r * 40.0);
-          col += step(0.985, r) * tw * smoothstep(0.05, 0.4, h) * vec3(1.0, 0.95, 1.0);
+          float point = 1.0-smoothstep(.08,.24,length(fract(grid)-vec3(.5)));
+          col += step(.91,r) * point * tw * smoothstep(0.05, 0.4, h) * vec3(1.0, 0.95, 1.0);
         }
         if (uAurora > 0.5 && h > 0.1) {
           float band = sin(d.x * 6.0 + uTime * 0.25 + sin(d.z * 4.0 + uTime * 0.15) * 1.5);
@@ -107,14 +122,18 @@ export function updateClouds(im: THREE.InstancedMesh, t: number, cam: THREE.Vect
   im.instanceMatrix.needsUpdate = true;
 }
 
-/** Stylised toon water: banded shoreline foam + moving sparkle ripples. */
-export function buildWater(color: string, size: number, y: number, centre: THREE.Vector3): THREE.Mesh {
+/** Animated wave normals with sky/sun reflections; a separate emissive flow for lava. */
+export function buildWater(color: string, size: number, y: number, centre: THREE.Vector3, theme?: ThemeDef, lava = false): THREE.Mesh {
   const mat = new THREE.ShaderMaterial({
     fog: true,
     transparent: false,
     uniforms: THREE.UniformsUtils.merge([
       THREE.UniformsLib.fog,
-      { uColor: { value: new THREE.Color(color) }, uTime: { value: 0 } },
+      { uColor: { value: new THREE.Color(color) }, uTime: { value: 0 },
+        uHorizon: { value: new THREE.Color(theme?.sky.horizon ?? '#C2DFEA') },
+        uSky: { value: new THREE.Color(theme?.sky.top ?? '#548DAD') },
+        uSunDir: { value: new THREE.Vector3(...(theme?.sky.sunDir ?? [.4,.7,.3])).normalize() },
+        uLava: { value: lava ? 1 : 0 } },
     ]),
     vertexShader: /* glsl */ `
       varying vec3 vW;
@@ -128,15 +147,32 @@ export function buildWater(color: string, size: number, y: number, centre: THREE
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 uColor; uniform float uTime;
+      uniform vec3 uHorizon, uSky, uSunDir;
+      uniform float uLava;
       varying vec3 vW;
       #include <fog_pars_fragment>
-      float n2(vec2 p) { return sin(p.x) * sin(p.y); }
       void main() {
-        vec2 p = vW.xz * 0.08;
-        float w = n2(p * 1.3 + vec2(uTime * 0.6, uTime * 0.4)) + n2(p * 2.1 - vec2(uTime * 0.5, -uTime * 0.3)) * 0.6;
-        float stripe = smoothstep(0.75, 0.95, w);
-        vec3 col = mix(uColor * 0.92, uColor * 1.08, smoothstep(-1.0, 1.0, w));
-        col = mix(col, vec3(1.0), stripe * 0.65);
+        vec2 p = vW.xz;
+        float a=p.x*.12+p.y*.07+uTime*.48;
+        float b=p.x*-.19+p.y*.21-uTime*.62;
+        float c=p.x*.53+p.y*.39+uTime*.83;
+        vec3 normal=normalize(vec3(-cos(a)*.12-cos(b)*-.065-cos(c)*.035,1.0,
+          -cos(a)*.07-cos(b)*.075-cos(c)*.026));
+        vec3 view=normalize(cameraPosition-vW);
+        float fresnel=.035+.78*pow(1.0-max(dot(normal,view),0.0),4.0);
+        vec3 reflection=reflect(-view,normal);
+        vec3 sky=mix(uHorizon,uSky,smoothstep(0.0,.75,reflection.y));
+        float swell=.5+.5*sin(a)*sin(b);
+        vec3 col=mix(uColor*(.68+swell*.24),sky,fresnel);
+        float sun=pow(max(dot(reflect(-uSunDir,normal),view),0.0),160.0);
+        col+=vec3(1.0,.94,.8)*sun*.8;
+        float foam=smoothstep(.94,1.0,sin(a*.7+sin(b)*.8)*sin(b*.6));
+        col=mix(col,vec3(.78,.9,.92),foam*.13);
+        if(uLava>.5) {
+          float crust=smoothstep(-.2,.65,sin(a*.4+sin(b*.5))*.6+sin(b*.7)*.4);
+          col=mix(vec3(.22,.055,.027),uColor*1.25,crust);
+          col+=vec3(1.0,.38,.04)*pow(crust,8.0)*.35;
+        }
         gl_FragColor = vec4(col, 1.0);
         #include <fog_fragment>
       }`,

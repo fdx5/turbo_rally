@@ -9,6 +9,7 @@ import { TrackPath, roadFrame } from './path';
 import type { ThemeDef } from './themes';
 import { buildBiomeScenery } from './biomeScenery';
 import { roadClearance } from './roadClearance';
+import { landscapeMaterial } from './landscape';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const at = (p: TrackPath, s: number, t = 0, lift = 0) => p.pointAt(s, t, new THREE.Vector3(), lift);
@@ -349,7 +350,7 @@ export function buildAdventureWorld(
         6,
       );
       details.torus(10, 0.25, '#FFECA3', { p: [p.x, y + 25, p.z], glow: 1.5, outline: false });
-    } else if (def.theme !== 'neon') {
+    } else if (def.theme === 'hangang' || def.theme === 'jeju') {
       solids.cyl(12, 23, h, '#819690', { p: [p.x, y + h / 2, p.z], outline: false }, 7);
       solids.sphere(15, '#8AB97B', { p: [p.x, y + h, p.z], s: [1, 0.3, 1], outline: false }, 8, 6);
       if (j % 3 === 0) {
@@ -373,5 +374,11 @@ export function buildAdventureWorld(
     }
   }
   out.add(solids.build({ outline: false }), details.build({ outline: false, castShadow: false }));
+  const natural = landscapeMaterial(def.theme);
+  out.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && !Array.isArray(mesh.material) && mesh.material.type === 'MeshToonMaterial')
+      mesh.material = natural;
+  });
   return out;
 }

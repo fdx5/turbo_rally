@@ -165,7 +165,7 @@ export class RaceSession {
     this.scene.add(this.boxes.group, this.coins.mesh);
     this.hazards = new Hazards(this.world);
     this.scene.add(this.hazards.group);
-    this.chase = new ChaseCam(this.camera);
+    this.chase = new ChaseCam(this.camera, this.world);
     this.fx.setBudget(q.particles);
     this.scene.add(this.fx.group);
 
@@ -528,7 +528,9 @@ export class RaceSession {
     this.rearCam.updateProjectionMatrix();
     this.rearCam.up.set(0, 1, 0);
     this.rearCam.position.set(p.x + fx * 0.6, p.y + top + 0.9, p.z + fz * 0.6);
-    this.rearCam.lookAt(p.x - fx * 25, p.y + 1.0, p.z - fz * 25);
+    const horizontal = Math.hypot(b.proj.fx, b.proj.fz) || 1;
+    const grade = b.grounded ? b.proj.fy * (fx * b.proj.fx + fz * b.proj.fz) / (horizontal * horizontal) : 0;
+    this.rearCam.lookAt(p.x - fx * 25, p.y + 1.0 - grade * 25, p.z - fz * 25);
     if (b.loopActive) {
       const f = b.loopFrame;
       this.rearCam.up.set(f.ux, f.uy, f.uz);

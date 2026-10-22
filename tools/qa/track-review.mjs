@@ -45,7 +45,7 @@ try {
         const g = ground.geometry;
         const pos = g.attributes.position;
         const res = g.parameters.widthSegments;
-        const spacing = pos.getX(1) - pos.getX(0);
+        const spacing = g.parameters.width / res;
         const heightAt = (x, z) => {
           const col = Math.floor((x - pos.getX(0)) / spacing);
           const row = Math.floor((z - pos.getZ(0)) / spacing);

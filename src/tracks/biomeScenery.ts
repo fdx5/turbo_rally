@@ -3,6 +3,7 @@ import { MeshBuilder } from '../art/builder';
 import { Rng } from '../core/rng';
 import type { TrackDef } from '../data/tracks';
 import type { TrackPath } from './path';
+import { landscapeMaterial } from './landscape';
 
 /** Large, distinctive silhouettes for all sixteen expeditions, outside every route corridor. */
 export function buildBiomeScenery(
@@ -13,7 +14,7 @@ export function buildBiomeScenery(
   const out = new THREE.Group();
   out.name = `biome-${def.theme}`;
   const b = new MeshBuilder();
-  b.detail = 0.5;
+  b.detail = 0.8;
   const rng = new Rng(`${def.id}:biome`),
     main = paths[0];
   const corridors: { x: number; z: number; radius: number }[] = [];
@@ -261,6 +262,11 @@ export function buildBiomeScenery(
     }
     out.userData.landmarks = (out.userData.landmarks ?? 0) + 1;
   }
-  out.add(b.build({ outline: false }));
+  const built = b.build({ outline: false });
+  built.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.name === 'solid') mesh.material = landscapeMaterial(def.theme);
+  });
+  out.add(built);
   return out;
 }
