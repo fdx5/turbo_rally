@@ -70,6 +70,8 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       target: 'es2022',
+      // the three.js chunk (~940KB raw) is needed up front anyway; splitting it wouldn't speed up the first race
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         input: {
           main: resolve(import.meta.dirname, 'index.html'),

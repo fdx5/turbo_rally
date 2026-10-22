@@ -514,8 +514,9 @@ export class RaceSession {
       this.renderMirror();
   }
 
-  /** Rear-view mirror: second view of the scene into a small top-right viewport (scissored). */
-  private rearCam = new THREE.PerspectiveCamera(55, 2.8, 0.5, 320);
+  /** Rear-view mirror: second view of the scene into a small top-right viewport (scissored).
+   *  The player's own kart is hidden for this pass, so the view shows the road behind instead of the driver's head. */
+  private rearCam = new THREE.PerspectiveCamera(50, 2.8, 0.3, 320);
   private renderMirror() {
     const r = this.R.renderer;
     const { x, y, w, h } = mirrorRect();
@@ -527,19 +528,20 @@ export class RaceSession {
     this.rearCam.aspect = w / h;
     this.rearCam.updateProjectionMatrix();
     this.rearCam.up.set(0, 1, 0);
-    this.rearCam.position.set(p.x + fx * 0.6, p.y + top + 0.9, p.z + fz * 0.6);
+    const eye = Math.min(top, 1.6) + 0.35;
+    this.rearCam.position.set(p.x - fx * 0.4, p.y + eye, p.z - fz * 0.4);
     const horizontal = Math.hypot(b.proj.fx, b.proj.fz) || 1;
     const grade = b.grounded ? b.proj.fy * (fx * b.proj.fx + fz * b.proj.fz) / (horizontal * horizontal) : 0;
-    this.rearCam.lookAt(p.x - fx * 25, p.y + 1.0 - grade * 25, p.z - fz * 25);
+    this.rearCam.lookAt(p.x - fx * 30, p.y + eye - 1.2 - grade * 30, p.z - fz * 30);
     if (b.loopActive) {
       const f = b.loopFrame;
       this.rearCam.up.set(f.ux, f.uy, f.uz);
       this.rearCam.position.set(
-        p.x + f.fx * 0.6 + f.ux * (top + 0.9),
-        p.y + f.fy * 0.6 + f.uy * (top + 0.9),
-        p.z + f.fz * 0.6 + f.uz * (top + 0.9),
+        p.x - f.fx * 0.4 + f.ux * eye,
+        p.y - f.fy * 0.4 + f.uy * eye,
+        p.z - f.fz * 0.4 + f.uz * eye,
       );
-      this.rearCam.lookAt(p.x - f.fx * 25 + f.ux, p.y - f.fy * 25 + f.uy, p.z - f.fz * 25 + f.uz);
+      this.rearCam.lookAt(p.x - f.fx * 30 + f.ux, p.y - f.fy * 30 + f.uy, p.z - f.fz * 30 + f.uz);
     }
     const H = window.innerHeight;
     const shadowAuto = r.shadowMap.autoUpdate;
@@ -548,7 +550,11 @@ export class RaceSession {
     r.setScissor(x, H - y - h, w, h);
     r.setViewport(x, H - y - h, w, h);
     r.clear(true, true, false);
+    const self = this.player.model.root;
+    const selfVisible = self.visible;
+    self.visible = false;
     r.render(this.scene, this.rearCam);
+    self.visible = selfVisible;
     r.setScissorTest(false);
     r.setViewport(0, 0, window.innerWidth, H);
     r.shadowMap.autoUpdate = shadowAuto;
@@ -1216,7 +1222,8 @@ export class RaceSession {
   }
 
   // ------------------------------------------------------------------ minimap
-  private buildMinimap() {
+  /** Track art in a 440-unit logical space, rasterised at `size` device px so the HUD canvas never gets rescaled by CSS. */
+  private buildMinimap(size = 440) {
     const m = this.world.main;
     const mapPoint = new THREE.Vector3();
     let minX = Infinity;
@@ -1231,7 +1238,7 @@ export class RaceSession {
         minZ = Math.min(minZ, mapPoint.z);
         maxZ = Math.max(maxZ, mapPoint.z);
       }
-    const S = 440; // 2x backing store for a crisp map on hi-dpi screens
+    const S = 440;
     const pad = 40;
     const sx = (S - pad * 2) / Math.max(maxX - minX, maxZ - minZ);
     this.mapXf = {
@@ -1240,8 +1247,9 @@ export class RaceSession {
       oz: pad - minZ * sx + (S - pad * 2 - (maxZ - minZ) * sx) / 2,
     };
     const c = document.createElement('canvas');
-    c.width = c.height = S;
+    c.width = c.height = size;
     const g = c.getContext('2d')!;
+    g.scale(size / S, size / S);
     const draw = (p: typeof m, w: number, col: string) => {
       g.beginPath();
       for (let i = 0; i < p.n; i += 2) {
@@ -1288,12 +1296,17 @@ export class RaceSession {
   private drawMinimap() {
     const c = minimapRef.canvas;
     if (!c || !this.mapBg) return;
+    // match the backing store to the on-screen size so the map is drawn 1:1 instead of blurred by CSS scaling
+    const want = Math.round(c.clientWidth * Math.min(window.devicePixelRatio || 1, 3));
+    if (want > 0 && c.width !== want) c.width = c.height = want;
+    if (this.mapBg.width !== c.width) this.buildMinimap(c.width);
     const g = c.getContext('2d')!;
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, c.width, c.height);
-    g.drawImage(this.mapBg, 0, 0, c.width, c.height);
-    const k = c.width / this.mapBg.width;
-    const px = (x: number) => (x * this.mapXf.sx + this.mapXf.ox) * k;
-    const pz = (z: number) => (z * this.mapXf.sx + this.mapXf.oz) * k;
+    g.drawImage(this.mapBg!, 0, 0);
+    g.setTransform(c.width / 440, 0, 0, c.width / 440, 0, 0);
+    const px = (x: number) => x * this.mapXf.sx + this.mapXf.ox;
+    const pz = (z: number) => z * this.mapXf.sx + this.mapXf.oz;
     if (this.ghost?.model.root.visible) {
       const gp = this.ghost.model.root.position;
       g.beginPath();

@@ -563,10 +563,9 @@ canvas.game {
   width: 190px;
   height: 190px;
   border-radius: 22px;
-  background: rgba(30, 43, 74, 0.72);
+  background: rgba(30, 43, 74, 0.9);
   border: 3px solid rgba(255, 255, 255, 0.85);
   box-shadow: 0 4px 0 rgba(30, 43, 74, 0.5);
-  backdrop-filter: blur(4px);
 }
 .hud-stand {
   position: absolute;
@@ -984,18 +983,15 @@ canvas.game {
     height: 46px;
     font-size: 24px;
   }
+  /* left column under the big position number, above the stick: the right side belongs to the mirror and touch buttons.
+     The standings list is dropped here — the position number already says the same thing. */
   .hud-map {
-    width: 120px;
-    height: 120px;
+    width: 116px;
+    height: 116px;
     bottom: auto;
-    top: calc(90px + var(--safe-t));
-    left: auto;
-    right: calc(14px + var(--safe-r));
+    top: calc(84px + var(--safe-t));
   }
   .hud-stand {
-    top: calc(82px + var(--safe-t));
-  }
-  .hud-stand .row:not(.me) {
     display: none;
   }
   .countdown {
