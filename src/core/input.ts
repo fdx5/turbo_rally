@@ -1,4 +1,5 @@
 import { useSettings } from './settings';
+import { TouchInput, touchSteer, smoothTouchSteer, tiltAxis } from './touchInput';
 
 /** Unified input state (keyboard + gamepad + touch). Edge-triggered actions are consumed by the game. */
 export interface InputState {
@@ -8,12 +9,14 @@ export interface InputState {
   drift: boolean;
   lookBack: boolean;
 }
-class Input {
+export class Input {
   state: InputState = { steer: 0, throttle: 0, brake: 0, drift: false, lookBack: false };
   private keys = new Set<string>();
   private edges = new Set<'item' | 'skill' | 'pause' | 'driftPress' | 'any'>();
-  touch = { steer: 0, accel: false, brake: false, drift: false, lookBack: false, active: false };
+  touch = new TouchInput();
   tilt = 0;
+  private tiltCentre: number | null = null;
+  private touchSteering = 0;
   private padPrev: boolean[] = [];
   attached = false;
 
@@ -33,15 +36,45 @@ class Input {
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('blur', () => this.reset());
+    window.addEventListener('pagehide', () => this.reset());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.reset(); });
+    window.addEventListener('orientationchange', () => { this.reset(); this.calibrateTilt(); });
+    screen.orientation?.addEventListener('change', () => { this.reset(); this.calibrateTilt(); });
     window.addEventListener('deviceorientation', (e) => {
       if (e.gamma == null || e.beta == null) return;
-      // Landscape: beta is the steering axis; sign depends on orientation angle.
-      const ang = (screen.orientation?.angle ?? 0) === 270 ? -1 : 1;
-      this.tilt = Math.max(-1, Math.min(1, (e.beta / 25) * ang));
+      const legacy = (window as Window & { orientation?: number }).orientation;
+      const angle = screen.orientation?.angle ?? legacy ?? (window.innerWidth > window.innerHeight ? 90 : 0);
+      const value = tiltAxis(e.beta, e.gamma, angle);
+      this.tiltCentre ??= value;
+      this.tilt = Math.max(-1, Math.min(1, (value - this.tiltCentre) / 22));
     });
   }
-  press(edge: 'item' | 'skill' | 'pause' | 'driftPress') {
+  calibrateTilt() {
+    this.tiltCentre = null;
+    this.tilt = 0;
+  }
+  /** Call directly from a tap, before any await, for Safari's sensor permission. */
+  async enableTilt(): Promise<boolean> {
+    const sensor = window.DeviceOrientationEvent as (typeof DeviceOrientationEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    }) | undefined;
+    if (!sensor) return false;
+    try {
+      if (sensor.requestPermission && await sensor.requestPermission() !== 'granted') return false;
+      this.calibrateTilt();
+      return true;
+    } catch { return false; }
+  }
+  reset() {
+    this.keys.clear();
+    this.edges.clear();
+    this.padPrev = [];
+    this.touch.reset();
+    this.touchSteering = 0;
+    this.state = { steer: 0, throttle: 0, brake: 0, drift: false, lookBack: false };
+  }
+  press(edge: 'item' | 'skill' | 'pause' | 'driftPress' | 'any') {
     this.edges.add(edge);
   }
   consume(edge: 'item' | 'skill' | 'pause' | 'driftPress' | 'any') {
@@ -52,7 +85,7 @@ class Input {
   clearEdges() {
     this.edges.clear();
   }
-  update() {
+  update(dt = 1 / 60, allowAutoAccel = true) {
     const k = this.keys;
     let steer = (k.has('ArrowRight') || k.has('KeyD') ? 1 : 0) - (k.has('ArrowLeft') || k.has('KeyA') ? 1 : 0);
     let throttle = k.has('ArrowUp') || k.has('KeyW') ? 1 : 0;
@@ -82,17 +115,19 @@ class Input {
 
     const t = this.touch;
     if (t.active) {
-      const mode = useSettings.getState().touchSteer;
-      const ts = mode === 'tilt' ? this.tilt : t.steer;
-      if (Math.abs(ts) > 0.05) steer = ts;
-      if (t.accel || useSettings.getState().autoAccel) throttle = Math.max(throttle, 1);
+      const settings = useSettings.getState();
+      // The stick remains usable as a fallback when sensor data is unavailable.
+      const ts = settings.touchSteer === 'tilt' && t.steer === 0 ? this.tilt : t.steer;
+      this.touchSteering = smoothTouchSteer(this.touchSteering, touchSteer(ts, settings.touchSensitivity), dt);
+      if (steer === 0) steer = this.touchSteering;
+      if (t.accel || (settings.autoAccel && allowAutoAccel)) throttle = Math.max(throttle, 1);
       if (t.brake) {
         brake = 1;
         throttle = 0;
       }
       drift = drift || t.drift;
       lookBack = lookBack || t.lookBack;
-    }
+    } else this.touchSteering = 0;
     this.state.steer = Math.max(-1, Math.min(1, steer));
     this.state.throttle = throttle;
     this.state.brake = brake;

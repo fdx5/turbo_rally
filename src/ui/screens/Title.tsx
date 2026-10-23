@@ -8,6 +8,7 @@ import { say } from '../../audio/voice';
 import { sfx } from '../common';
 import { Logo } from '../Logo';
 import { I } from '../icons';
+import { InstallButton, FullscreenButton } from '../MobileDisplay';
 
 export function Loading() {
   const { loadingMsg, loadingPct } = useApp();
@@ -41,7 +42,7 @@ export function Title() {
     go('menu');
   };
   return (
-    <div className="screen" style={{ justifyContent: 'center' }}>
+    <div className="screen title-screen" style={{ justifyContent: 'center' }}>
       <div style={{ marginLeft: '5vw', maxWidth: 520 }}>
         <div className="pop-in">
           <Logo width={Math.min(480, window.innerWidth * 0.42)} />
@@ -49,7 +50,7 @@ export function Title() {
         <div className="chip" style={{ margin: '18px 0 26px', fontSize: 18, transform: 'rotate(-2deg)' }}>
           8인 파스텔 카트 레이싱 · 드리프트 · 아이템 배틀
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' }}>
+        <div className="title-actions" style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' }}>
           <button className="btn big" onClick={start}>
             <I name="play" size={26} />
             {member ? `${profile.nickname}(으)로 시작` : '게스트로 시작'}
@@ -79,6 +80,7 @@ export function Title() {
             </div>
           )}
           {!server && <div className="chip" style={{ fontSize: 14 }}>오프라인 모드 · 게스트 진행도는 이 기기에 저장돼요</div>}
+          <div className="mobile-display-actions"><InstallButton /><FullscreenButton /></div>
         </div>
       </div>
     </div>

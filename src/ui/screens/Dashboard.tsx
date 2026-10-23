@@ -71,7 +71,7 @@ export function Dashboard() {
     music.play('dashboard');
   }, []);
   return (
-    <div className="screen">
+    <div className="screen dashboard-screen">
       <TopBar title="📊 대시보드" />
       {!member && <div className="chip" style={{ alignSelf: 'flex-start', marginTop: 6 }}>💾 회원가입하면 기록이 서버에 영구 저장돼요</div>}
       <div className="tabs" style={{ marginTop: 8 }}>

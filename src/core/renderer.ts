@@ -3,6 +3,7 @@ import { BloomEffect, EffectComposer, EffectPass, RenderPass, SMAAEffect, SMAAPr
 import { outlineUniforms } from '../art/toon';
 import { initEnv } from '../art/materials';
 import type { QualityLevel } from './settings';
+import { gameViewport } from './mobileDisplay';
 
 export type Preset = Exclude<QualityLevel, 'auto'>;
 export interface PresetDef {
@@ -62,6 +63,7 @@ export class Renderer {
     this.preset = quality === 'auto' ? (isMobile ? 'medium' : 'high') : quality;
     this.applyPreset();
     window.addEventListener('resize', () => this.resize());
+    window.addEventListener('gameviewportchange', () => this.resize());
     this.resize();
   }
   get def() {
@@ -104,8 +106,7 @@ export class Renderer {
     this.onPresetChange?.(this.preset);
   }
   resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const { width: w, height: h } = gameViewport();
     const dpr = Math.min(Math.max(window.devicePixelRatio || 1, this.def.minDpr), this.def.dpr) * this.dprScale;
     this.renderer.setPixelRatio(Math.max(0.5, dpr));
     this.renderer.setSize(w, h, false);

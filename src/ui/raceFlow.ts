@@ -9,6 +9,7 @@ import type { Difficulty } from '../ai/driver';
 import type { CharId } from '../data/characters';
 import { music } from '../audio/music';
 import { audio } from '../audio/engine';
+import { requestGameFullscreen } from '../core/mobileDisplay';
 
 function b64(f: Float32Array) {
   const u = new Uint8Array(f.buffer);
@@ -30,10 +31,7 @@ const isMobile =
 /** Mobile only: go fullscreen + landscape on race start (must run inside the tap's user gesture). */
 function mobileFullscreen() {
   if (!isMobile || document.fullscreenElement || matchMedia('(display-mode: standalone)').matches) return;
-  document.documentElement
-    .requestFullscreen?.({ navigationUI: 'hide' })
-    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape'))
-    .catch(() => {});
+  void requestGameFullscreen(false);
 }
 
 /** Validates guest gates (§11.2), prepares the 8-kart field, and runs a race session. */

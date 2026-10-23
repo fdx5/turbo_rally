@@ -24,9 +24,10 @@ export function ModeSelect() {
     { d: 'hard', icon: '👑', desc: 'AI가 드리프트·지름길 장인! 골드 ×1.5, ★3 획득 가능' },
   ];
   return (
-    <div className="screen">
+    <div className="screen mode-select">
       <TopBar title="난이도 선택" />
       <div
+        className="difficulty-options"
         style={{
           flex: 1,
           display: 'flex',
@@ -194,11 +195,11 @@ export function CharacterSelect() {
   };
   const c = CHAR_BY_ID[sel];
   return (
-    <div className="screen">
+    <div className="screen character-select">
       <TopBar title="캐릭터 선택" />
       <div className="spacer" />
       <div
-        className="panel"
+        className="panel character-info"
         style={{ alignSelf: 'center', padding: '10px 18px', textAlign: 'center', marginBottom: 10 }}
       >
         <div style={{ fontSize: 30 }}>
@@ -213,7 +214,8 @@ export function CharacterSelect() {
         <div style={{ fontSize: 16, color: '#FF5A36' }}>✨ {c.passive.text}</div>
         <div style={{ fontSize: 15, color: '#4B5A78' }}>"{c.lines.select}"</div>
       </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <div className="character-footer" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div className="character-options" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
         {CHARACTERS.map((ch) => (
           <div
             key={ch.id}
@@ -229,6 +231,7 @@ export function CharacterSelect() {
             <div style={{ fontSize: 15 }}>{ch.name}</div>
           </div>
         ))}
+        </div>
         <button
           className="btn big"
           onClick={() => {
@@ -311,7 +314,7 @@ export function VehicleSelect() {
     return '';
   };
   return (
-    <div className="screen">
+    <div className="screen vehicle-select">
       <TopBar title="차량 선택" />
       <div style={{ flex: 1, display: 'flex', gap: 14, minHeight: 0, marginTop: 10 }}>
         <div className="scroll panel" style={{ width: 'min(330px, 34vw)', padding: 10 }}>
@@ -336,7 +339,7 @@ export function VehicleSelect() {
         </div>
         <div className="spacer" />
         <div
-          className="panel"
+          className="panel vehicle-summary"
           style={{
             width: 'min(380px, 40vw)',
             padding: 16,
@@ -396,7 +399,7 @@ export function VehicleSelect() {
             <div style={{ fontSize: 14 }}>{v.skill.desc}</div>
           </div>
           {msg && <div style={{ color: '#E8412C', marginTop: 6 }}>{msg}</div>}
-          <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
+          <div className="vehicle-start" style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'flex-end' }}>
             {owned(sel) ? (
               <button
                 className="btn big"

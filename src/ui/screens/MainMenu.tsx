@@ -13,6 +13,7 @@ import { CHAR_BY_ID } from '../../data/characters';
 import { VEHICLE_BY_ID } from '../../data/vehicles';
 import { TRACKS } from '../../data/tracks';
 import { countStars, xpToNext } from '../../../shared/economy';
+import { InstallButton, FullscreenButton } from '../MobileDisplay';
 
 export function MainMenu() {
   const { go, set } = useApp();
@@ -39,7 +40,7 @@ export function MainMenu() {
     go(mode === 'race' ? 'mode' : 'track');
   };
   return (
-    <div className="screen">
+    <div className="screen main-menu">
       <div className="topbar" style={{ alignItems: 'flex-start' }}>
         <Logo width={250} />
         <div className="spacer" />
@@ -68,7 +69,7 @@ export function MainMenu() {
           <I name="chart" size={24} /> 대시보드
         </button>
       </div>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, paddingLeft: 10 }}>
+      <div className="menu-mode-list" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, paddingLeft: 10 }}>
         <div className="mode-tile" onClick={() => pick('race')}>
           <div className="badge">
             <I name="flag" size={40} />
@@ -96,7 +97,7 @@ export function MainMenu() {
             <div className="s">부담 없이 코스 익히기</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+        <div className="menu-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
           {(
             [
               ['bag', '상점', () => go('shop'), 0],
@@ -122,7 +123,7 @@ export function MainMenu() {
           ))}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+      <div className="menu-footer" style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
         <div className="license" style={{ width: 'min(430px, 46vw)' }}>
           <h4>
             {member ? profile.nickname : '게스트 레이서'} · {CHAR_BY_ID[profile.selectedChar].name} & {VEHICLE_BY_ID[profile.selectedVehicle]?.name}
@@ -144,6 +145,7 @@ export function MainMenu() {
           )}
         </div>
         <div className="spacer" />
+        <div className="mobile-display-actions"><InstallButton /><FullscreenButton /></div>
         {member ? (
           <button className="btn ghost small" onClick={() => logout()}>
             로그아웃

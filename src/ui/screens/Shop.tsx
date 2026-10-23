@@ -119,7 +119,7 @@ export function Shop() {
   };
   const gap = (price: number) => Math.max(0, price - profile.gold);
   return (
-    <div className="screen" onPointerMove={(e) => e.buttons === 1 && e.target === e.currentTarget && (getShell().showroom.dragVel += e.movementX * 0.02)}>
+    <div className="screen shop-screen" onPointerMove={(e) => e.buttons === 1 && e.target === e.currentTarget && (getShell().showroom.dragVel += e.movementX * 0.02)}>
       <TopBar title="상점" />
       <div className="tabs" style={{ marginTop: 8 }}>
         {(

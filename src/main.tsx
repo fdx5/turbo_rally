@@ -6,8 +6,10 @@ import { useApp } from './game/app';
 import { useProfile } from './net/profileStore';
 import { loadFonts } from './art/fonts';
 import { prewarmPortraits } from './ui/portraits';
+import { watchGameViewport } from './core/mobileDisplay';
 
 async function boot() {
+  watchGameViewport();
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const root = createRoot(document.getElementById('root')!);
   root.render(<App />);

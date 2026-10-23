@@ -50,7 +50,7 @@ export function Results() {
     startRaceFlow(trackId, mode, difficulty);
   };
   return (
-    <div className="screen">
+    <div className="screen results-screen">
       <div className="topbar">
         <h1>
           {mode === 'race' ? `${res.position}위!` : mode === 'timeattack' ? `기록 ${fmtMs(res.totalMs)}` : '연습 완료'} {res.position === 1 && mode === 'race' ? '🏆' : ''}

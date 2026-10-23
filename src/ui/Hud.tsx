@@ -6,19 +6,21 @@ import type { CharId } from '../data/characters';
 import { fmt, mirrorRect } from '../race/race';
 import { MT_LEVELS } from '../physics/kart';
 import { useSettings } from '../core/settings';
+import { showMobileMirror, hasTouchControls } from '../core/mobileDisplay';
 
 const POS_COL = ['#FFB400', '#9AA9C9', '#E0915A', '#FF5A36', '#FF5A36', '#2F6FDB', '#2F6FDB', '#2F6FDB'];
 
 export function Hud({ onPause }: { onPause: () => void }) {
   const h = useHud();
   const showFps = useSettings((s) => s.showFps);
-  const mirror = useSettings((s) => s.rearMirror) && (h.phase === 'race' || h.phase === 'countdown');
+  const mirror = useSettings((s) => s.rearMirror) && showMobileMirror() && (h.phase === 'race' || h.phase === 'countdown');
   const mr = mirrorRect();
   const [, force] = useState(0);
   useEffect(() => {
     const f = () => force((n) => n + 1);
     window.addEventListener('resize', f);
-    return () => window.removeEventListener('resize', f);
+    window.addEventListener('gameviewportchange', f);
+    return () => { window.removeEventListener('resize', f); window.removeEventListener('gameviewportchange', f); };
   }, []);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const [bump, setBump] = useState(false);
@@ -56,7 +58,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
   const C = 2 * Math.PI * 40;
   if (!h.active) return null;
   return (
-    <div className="hud">
+    <div className={`hud ${hasTouchControls() ? 'touch-hud' : ''}`}>
       <div className={`speedlines ${h.boost ? 'on' : ''}`} />
       {blind && <div className="screen-blind" key={h.blindUntil} />}
       {flash && <div className="screen-flash" key={h.flashUntil} />}
@@ -152,7 +154,7 @@ export function Hud({ onPause }: { onPause: () => void }) {
           </div>
         ))}
       </div>
-      <button className="btn icon ghost tap pausebtn" style={mirror ? { right: 'auto', left: mr.x - 70, top: mr.y } : undefined} onClick={onPause} aria-label="일시정지">
+      <button className="btn icon ghost tap pausebtn" style={mirror && !hasTouchControls() ? { right: 'auto', left: mr.x - 70, top: mr.y } : undefined} onClick={onPause} aria-label="일시정지">
         ⏸
       </button>
       {showFps && (

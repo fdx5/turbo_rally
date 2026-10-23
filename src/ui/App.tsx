@@ -14,6 +14,7 @@ import { audio } from '../audio/engine';
 import { useSettings } from '../core/settings';
 import { isMobile } from '../core/renderer';
 import { useProfile } from '../net/profileStore';
+import { MobileDisplay } from './MobileDisplay';
 
 export function App() {
   const screen = useApp((s) => s.screen);
@@ -100,6 +101,7 @@ export function App() {
           </div>
         </Modal>
       )}
+      <MobileDisplay />
       <div className={`rotate-overlay ${isMobile ? 'mobile' : ''}`}>
         <div>
           <div className="phone">📱</div>

@@ -5,6 +5,7 @@ import { ItemBoxes, Coins } from '../tracks/pickups';
 import { Hazards } from '../tracks/hazards';
 import { KartBody, type KartControls } from '../physics/kart';
 import { finalStats, displayKmh } from '../data/statCurves';
+import { gameViewport, showMobileMirror, hasTouchControls } from '../core/mobileDisplay';
 import { CHAR_BY_ID, type CharId } from '../data/characters';
 import { VEHICLE_BY_ID } from '../data/vehicles';
 import { AIDriver, type Difficulty } from '../ai/driver';
@@ -377,7 +378,7 @@ export class RaceSession {
     this.time += dt;
     sharedTime.value = this.time;
     this.phaseT += dt;
-    input.update();
+    input.update(dt, this.phase === 'race' || this.phase === 'finish');
     const inp = input.state;
     const hud = useHud.getState();
 
@@ -520,7 +521,7 @@ export class RaceSession {
   private render(dt: number) {
     this.R.renderer.info.reset();
     this.R.render(dt);
-    if (useSettings.getState().rearMirror && (this.phase === 'race' || this.phase === 'countdown'))
+    if (useSettings.getState().rearMirror && showMobileMirror() && (this.phase === 'race' || this.phase === 'countdown'))
       this.renderMirror();
   }
 
@@ -553,7 +554,7 @@ export class RaceSession {
       );
       this.rearCam.lookAt(p.x - f.fx * 30 + f.ux, p.y - f.fy * 30 + f.uy, p.z - f.fz * 30 + f.uz);
     }
-    const H = window.innerHeight;
+    const { width: W, height: H } = gameViewport();
     const shadowAuto = r.shadowMap.autoUpdate;
     r.shadowMap.autoUpdate = false;
     r.setScissorTest(true);
@@ -566,7 +567,7 @@ export class RaceSession {
     r.render(this.scene, this.rearCam);
     self.visible = selfVisible;
     r.setScissorTest(false);
-    r.setViewport(0, 0, window.innerWidth, H);
+    r.setViewport(0, 0, W, H);
     r.shadowMap.autoUpdate = shadowAuto;
   }
 
@@ -1403,7 +1404,11 @@ const ghostMat = new THREE.MeshBasicMaterial({
 });
 /** Mirror rectangle in CSS px (top-left origin); the HUD frame uses the same formula. */
 export function mirrorRect() {
-  const W = window.innerWidth;
+  const W = gameViewport().width;
+  if (hasTouchControls()) {
+    const w = Math.round(Math.min(200, Math.max(136, W * .22)));
+    return { x: Math.round((W-w)/2), y: 8, w, h: Math.round(w*.28) };
+  }
   const w = Math.round(Math.min(380, Math.max(220, W * 0.26)));
   const h = Math.round(w * 0.34);
   return { x: W - w - 16, y: 12, w, h };

@@ -41,6 +41,10 @@ body,
   -webkit-user-select: none;
   touch-action: none;
   overscroll-behavior: none;
+  -webkit-touch-callout: none;
+}
+@supports (height: 100dvh) {
+  html, body, #root { height: 100dvh; }
 }
 canvas.game {
   position: fixed;
@@ -794,38 +798,98 @@ canvas.game {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  --touch-size: clamp(48px, calc(var(--app-height, 100dvh) * .16 * var(--touch-scale, 1)), 72px);
+  z-index: 10;
 }
-.touch .pad {
+.drive-button {
   pointer-events: auto;
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  border: 3px solid rgba(255, 255, 255, 0.8);
+  background: rgba(240, 247, 255, .9);
+  border: 2px solid rgba(30, 43, 74, .75);
+  box-shadow: 0 3px 0 rgba(30, 43, 74, .5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  width: var(--touch-size);
+  height: var(--touch-size);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 3px;
+  font: 12px var(--font);
+  line-height: 1.1;
+  color: var(--ink);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.drive-button:disabled { opacity: .48; }
+.drive-button.on, .drive-button:active:not(:disabled) {
+  background: #FFE2A4;
+  box-shadow: 0 1px 0 rgba(30,43,74,.5);
+  border-color: #E66A20;
+}
+.drive-button small { font: 10px var(--font); }
+.drive-icon { font-size: clamp(23px, 6vh, 32px); line-height: 1; }
+.touch-steering, .touch-actions {
+  position: absolute;
+  bottom: calc(20px + var(--safe-b));
+  height: calc(var(--touch-size) * 2.85);
+}
+.touch-steering { left: calc(12px + var(--safe-l)); width: min(34vw, 240px); }
+.touch-actions { right: calc(14px + var(--safe-r)); width: calc(var(--touch-size) * 3.8); }
+.steering-zone {
+  pointer-events: auto;
+  touch-action: none;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+.steering-ring {
+  pointer-events: none;
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--touch-size) * 2.15);
+  height: calc(var(--touch-size) * 2.15);
+  border: 2px solid rgba(255,255,255,.85);
+  border-radius: 50%;
+  background: rgba(30,43,74,.2);
   display: grid;
   place-items: center;
-  font-size: 26px;
-  color: #fff;
-  text-shadow: 0 2px 4px rgba(74, 59, 82, 0.5);
-  backdrop-filter: blur(2px);
-  touch-action: none;
 }
-.touch .pad.on {
-  background: rgba(255, 200, 221, 0.65);
-  transform: scale(0.94);
-}
-.touch .stick {
-  left: calc(26px + var(--safe-l));
-  bottom: calc(26px + var(--safe-b));
-  width: 160px;
-  height: 160px;
-}
-.touch .knob {
-  width: 64px;
-  height: 64px;
+.steering-ring.engaged { border-color: #FFD66E; background: rgba(30,43,74,.35); }
+.steering-knob {
+  width: calc(var(--touch-size) * .85);
+  height: calc(var(--touch-size) * .85);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 10px rgba(74, 59, 82, 0.3);
+  background: rgba(240,247,255,.94);
+  border: 2px solid rgba(30,43,74,.65);
+  box-shadow: 0 3px 0 rgba(30,43,74,.35);
+  will-change: transform;
 }
+.steering-arrows { position: absolute; font: 28px var(--num); color: #fff; opacity: .8; }
+.steering-caption { position: absolute; bottom: -10px; left: 0; width: 100%; text-align: center; color: #fff; text-shadow: 0 1px 3px #1E2B4A; font-size: 11px; pointer-events: none; }
+.steering-buttons { position: absolute; inset: 0; }
+.steer-left, .steer-right { bottom: 18px; width: calc(var(--touch-size) * 1.3); height: calc(var(--touch-size) * 1.4); font-size: 30px; border-radius: 24px; }
+.steer-left { left: 0; }
+.steer-right { right: 0; }
+.drive-drift { right: 0; bottom: 0; width: calc(var(--touch-size) * 1.5); height: calc(var(--touch-size) * 1.5); background: rgba(255,221,177,.94); font-size: 14px; }
+.drive-drift small { font-size: 9px; }
+.drive-drift .drive-icon { font-size: 38px; }
+.drive-item { right: calc(var(--touch-size) * 1.65); bottom: calc(var(--touch-size) * 1.05); }
+.drive-skill { right: calc(var(--touch-size) * .22); bottom: calc(var(--touch-size) * 1.72); background: conic-gradient(#FFD66E var(--skill-progress), rgba(240,247,255,.9) 0); }
+.drive-skill.ready { border-color: #D9700A; box-shadow: 0 0 0 3px rgba(255,214,110,.5); }
+.drive-brake, .drive-look { bottom: 0; width: calc(var(--touch-size) * .9); height: calc(var(--touch-size) * .9); }
+.drive-brake { right: calc(var(--touch-size) * 1.65); }
+.drive-look { right: calc(var(--touch-size) * 2.75); }
+.drive-brake > span, .drive-look > span, .drive-accel > span { font-size: 23px; }
+.drive-accel { right: calc(var(--touch-size) * 2.75); bottom: calc(var(--touch-size) * 1.05); background: #D3F0DF; }
+.auto-accel-note { position: absolute; right: 0; bottom: -15px; width: calc(var(--touch-size) * 1.5); text-align: center; font-size: 10px; color: #fff; text-shadow: 0 1px 3px #1E2B4A; }
+.tilt-calibrate { position: absolute; top: -30px; left: 0; pointer-events: auto; font: 11px var(--font); max-width: 100%; min-height: 32px; color: var(--ink); background: #EFF6FF; border: 1px solid var(--ink); border-radius: 9px; }
 
 /* ---------- screens ---------- */
 .screen {
@@ -1008,4 +1072,145 @@ canvas.game {
     right: calc(150px + var(--safe-r));
     font-size: 20px;
   }
+}
+
+/* The road stays clear; thumb controls own the bottom corners, HUD owns the top. */
+@media (pointer: coarse), (hover: none) {
+  .touch-hud .hud-skill, .touch-hud .hud-stand { display: none; }
+  .touch-hud .hud-pos { left: calc(10px + var(--safe-l)); top: calc(5px + var(--safe-t)); }
+  .touch-hud .hud-pos .n { font-size: 46px; }
+  .touch-hud .hud-pos .of { font-size: 16px; }
+  .touch-hud .hud-top { left: auto; right: calc(66px + var(--safe-r)); top: calc(8px + var(--safe-t)); transform: none; gap: 5px; }
+  .touch-hud .hud-lap, .touch-hud .hud-time { padding: 4px 7px; font-size: 15px; }
+  .touch-hud .hud-items { top: calc(53px + var(--safe-t)) !important; right: calc(12px + var(--safe-r)); gap: 4px; }
+  .touch-hud .slot { width: 45px; height: 45px; font-size: 26px; border-width: 2px; }
+  .touch-hud .slot.small { width: 30px; height: 30px; font-size: 18px; }
+  .touch-hud .slot .name { font-size: 10px; bottom: -14px; }
+  .touch-hud .hud-map { top: calc(63px + var(--safe-t)); left: calc(10px + var(--safe-l)); bottom: auto; width: clamp(60px, 18vh, 94px); height: clamp(60px, 18vh, 94px); }
+  .touch-hud .hud-coins { top: calc(10px + var(--safe-t)); left: calc(98px + var(--safe-l)); right: auto; bottom: auto; font-size: 17px; }
+  .touch-hud .hud-speed { font-size: 25px; bottom: calc(9px + var(--safe-b)); }
+  .touch-hud .hud-speed small { font-size: 11px; }
+  .touch-hud .mt-indicator { bottom: calc(43px + var(--safe-b)); }
+  .touch-hud .pausebtn { top: calc(6px + var(--safe-t)); right: calc(10px + var(--safe-r)); width: 44px; height: 44px; min-width: 44px; padding: 0; }
+  .touch-hud .status-icons { top: calc(105px + var(--safe-t)); right: calc(18px + var(--safe-r)); font-size: 23px; }
+  .touch-hud .toast { bottom: auto; top: 28%; }
+  .touch-hud .toast div { padding: 5px 12px; font-size: 15px; }
+  .touch-hud .intro-card { bottom: 42%; width: 62%; }
+  .touch-hud .intro-card h2 { font-size: 25px; }
+  .touch-hud .intro-card p { font-size: 13px; }
+  .touch-hud .wrongway { font-size: 19px; padding: 7px 12px; }
+  .btn, .tab { min-height: 44px; }
+  .input { font-size: 16px; }
+  input[type='range'] { min-height: 44px; touch-action: pan-x; accent-color: #2F6FDB; }
+  .modal { overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; max-height: calc(100dvh - var(--safe-t) - var(--safe-b) - 24px); }
+  .settings-row { flex-wrap: wrap; }
+  .settings-row > input[type='range'] { flex: 1; min-width: 100px; width: 120px; }
+}
+@media (max-height: 520px) and (min-width: 480px) {
+  .screen { padding: calc(8px + var(--safe-t)) calc(12px + var(--safe-r)) calc(8px + var(--safe-b)) calc(12px + var(--safe-l)); }
+  .topbar { min-height: 44px; gap: 7px; flex-shrink: 0; }
+  .topbar h1 { font-size: 24px; -webkit-text-stroke-width: 4px; }
+  .main-menu .topbar > svg { width: clamp(85px, 12vw, 115px); height: auto; }
+  .main-menu .topbar .tag { font-size: 14px; padding: 3px 5px; gap: 3px; }
+  .main-menu .topbar .tag svg { width: 20px; height: 20px; }
+  .main-menu .topbar .meter { display: none; }
+  .main-menu .topbar .btn { font-size: 14px; padding: 5px 9px; }
+  .main-menu .menu-mode-list { display: grid !important; grid-template-columns: minmax(210px, 1fr) minmax(180px, .85fr); grid-template-rows: repeat(3, minmax(48px, 1fr)); gap: 9px !important; padding: 9px 0 !important; min-height: 0; }
+  .main-menu .mode-tile { width: 100% !important; margin: 0 !important; padding: 7px 10px; gap: 9px; grid-column: 1; }
+  .main-menu .mode-tile .badge { width: 38px; height: 38px; border-radius: 11px; }
+  .main-menu .mode-tile .badge svg { width: 25px; height: 25px; }
+  .main-menu .mode-tile .t { font-size: 23px; -webkit-text-stroke-width: 3px; }
+  .main-menu .mode-tile .s { font-size: 11px; margin-top: 3px; }
+  .main-menu .menu-actions { display: grid !important; grid-column: 2; grid-row: 1 / 4; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,minmax(0,1fr)); margin: 0 !important; gap: 9px !important; }
+  .main-menu .mini-tile { width: auto; min-width: 0; padding: 6px 3px; justify-content: center; border-radius: 12px; font-size: 13px; }
+  .main-menu .mini-tile svg { width: 28px; height: 28px; }
+  .main-menu .menu-footer { align-items: center !important; min-height: 44px; }
+  .main-menu .license { width: auto !important; flex: 1; min-width: 0; padding: 6px 9px; max-height: 44px; overflow: hidden; }
+  .main-menu .license h4 { margin: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .main-menu .license > :not(h4) { display: none; }
+  .main-menu .menu-footer .btn { font-size: 13px; padding: 5px 9px; }
+  .modal { padding: 16px; }
+}
+
+/* Match the actually visible Safari area, including when its address bar is expanded. */
+canvas.game, .screen, .hud, .touch, .modal-bg, .rotate-overlay {
+  inset: auto;
+  left: var(--app-left, 0px);
+  top: var(--app-top, 0px);
+  width: var(--app-width, 100%);
+  height: var(--app-height, 100%);
+}
+.screen { min-height: 0; }
+.screen > .panel, .screen .scroll { min-height: 0; }
+.mobile-display-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.install-help { z-index: 150; }
+.install-help h2 { margin: 0 0 12px; font-size: 24px; }
+.install-steps { margin: 14px 0; padding-left: 26px; }
+.install-steps li { padding: 7px 0 7px 4px; line-height: 1.5; }
+.install-steps li::marker { color: #2F6FDB; font-weight: bold; }
+.install-note { font-size: 13px; color: #4B5A78; }
+.install-help-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+@media (max-height: 520px) {
+  .title-screen > div { margin-left: 2vw !important; max-width: 90%; }
+  .title-screen .pop-in svg { width: min(190px, 28vw); height: auto; }
+  .title-screen .chip { margin: 8px 0 !important; font-size: 12px !important; }
+  .title-screen .btn.big { font-size: 20px; padding: 8px 18px; }
+  .title-screen .btn { font-size: 14px; padding: 6px 12px; }
+  .title-screen .title-actions { flex-direction: row !important; flex-wrap: wrap; gap: 8px !important; max-width: 430px; }
+  .title-screen .mobile-display-actions { position: absolute; right: calc(12px + var(--safe-r)); top: calc(14px + var(--safe-t)); bottom: auto; }
+  .main-menu .mobile-display-actions { gap: 5px; flex-wrap: nowrap; }
+  .main-menu .mobile-display-actions .btn { font-size: 12px; padding: 5px 7px; }
+  .install-help h2 { font-size: 20px; }
+  .install-help p, .install-steps { font-size: 14px; }
+}
+html[data-viewport='tiny'] .main-menu .topbar { min-height: 40px; }
+html[data-viewport='tiny'] .main-menu .topbar > svg { width: 90px; }
+html[data-viewport='tiny'] .main-menu .menu-mode-list { gap: 7px !important; padding: 6px 0 !important; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,minmax(44px,1fr)); }
+html[data-viewport='tiny'] .main-menu .mode-tile:nth-child(1) { grid-column: 1; grid-row: 1; }
+html[data-viewport='tiny'] .main-menu .mode-tile:nth-child(2) { grid-column: 2; grid-row: 1; }
+html[data-viewport='tiny'] .main-menu .mode-tile:nth-child(3) { grid-column: 3; grid-row: 1; }
+html[data-viewport='tiny'] .main-menu .menu-actions { grid-column: 1 / 4; grid-row: 2; grid-template-columns: repeat(6,minmax(0,1fr)); grid-template-rows: 1fr; }
+html[data-viewport='tiny'] .main-menu .mini-tile { flex-direction: row; min-height: 44px; padding: 4px; gap: 4px; font-size: 12px; }
+html[data-viewport='tiny'] .main-menu .mini-tile svg { width: 20px; height: 20px; }
+html[data-viewport='tiny'] .main-menu .mode-tile { padding: 4px 8px; }
+html[data-viewport='tiny'] .main-menu .mode-tile .badge { width: 30px; height: 30px; }
+html[data-viewport='tiny'] .main-menu .mode-tile .t { font-size: 18px; }
+html[data-viewport='tiny'] .main-menu .mode-tile .s { display: none; }
+html[data-viewport='tiny'] .main-menu .menu-footer .license { display: none; }
+html[data-viewport='tiny'] .touch-hud .hud-items { display: none; }
+html[data-viewport='tiny'] .touch-hud .hud-map { display: none; }
+html[data-viewport='tiny'] .touch-hud .hud-top { top: 5px; }
+html[data-viewport='tiny'] .steering-caption, html[data-viewport='tiny'] .drive-drift small { display: none; }
+html[data-viewport='tiny'] .touch-steering, html[data-viewport='tiny'] .touch-actions { bottom: calc(12px + var(--safe-b)); }
+.modal { max-height: calc(var(--app-height, 100dvh) - var(--safe-t) - var(--safe-b) - 24px); }
+@media (max-height: 520px) and (min-width: 480px) {
+  .mode-select .difficulty-options { flex-wrap: nowrap !important; align-items: stretch !important; min-height: 0; padding: 10px 0; gap: 10px !important; }
+  .mode-select .difficulty-options .card { width: auto !important; flex: 1; min-width: 0; overflow-y: auto; touch-action: pan-y; padding: 12px !important; }
+  .mode-select .difficulty-options .card > div:first-child { font-size: 30px !important; }
+  .mode-select .difficulty-options .card > div:nth-child(2) { font-size: 22px !important; }
+  .mode-select .difficulty-options .card > div:last-child { font-size: 12px !important; }
+  .mode-select .difficulty-options .chip { margin: 4px 0 !important; font-size: 13px; }
+  .character-select .character-info { align-self: flex-end !important; text-align: left !important; width: min(390px, 48%); max-height: calc(var(--app-height, 100dvh) - 155px); overflow-y: auto; touch-action: pan-y; padding: 7px 10px !important; margin: 6px 0 !important; }
+  .character-select .character-info > div:first-child { font-size: 22px !important; }
+  .character-select .character-info > div { font-size: 13px !important; }
+  .character-select .character-footer { flex-wrap: nowrap !important; flex-shrink: 0; align-items: stretch; min-height: 76px; }
+  .character-select .character-options { flex: 1; min-width: 0; justify-content: flex-start !important; flex-wrap: nowrap !important; overflow-x: auto; touch-action: pan-x; padding: 4px 3px 8px; gap: 6px !important; }
+  .character-select .character-options .card { width: 60px !important; min-width: 60px; padding: 3px !important; border-width: 2px; }
+  .character-select .character-options img { width: 44px !important; height: 44px !important; }
+  .character-select .character-options .card > div { font-size: 12px !important; }
+  .character-select .character-footer > .btn { flex-shrink: 0; font-size: 19px; padding: 8px 16px; }
+  .vehicle-select .vehicle-summary { padding: 10px !important; }
+  .vehicle-select .vehicle-summary > div:first-child { font-size: 19px !important; }
+  .vehicle-select .vehicle-summary > div > svg { width: 86px !important; height: 86px !important; }
+  .vehicle-select .vehicle-start { position: sticky; bottom: -10px; background: #fff; padding: 8px 0; z-index: 2; }
+  .vehicle-select .vehicle-start .btn { font-size: 20px; padding: 8px 18px; }
+  .shop-screen > .tabs, .dashboard-screen > .tabs { flex-wrap: nowrap; overflow-x: auto; flex-shrink: 0; min-height: 48px; padding-bottom: 4px; touch-action: pan-x; }
+  .shop-screen > .tabs .tab, .dashboard-screen > .tabs .tab { flex-shrink: 0; white-space: nowrap; }
+  .shop-screen > .tabs .chip { display: none; }
+  .shop-screen .panel { min-height: 0; }
+  .shop-screen > div:last-of-type > div:first-child > .panel { max-height: 100%; overflow-y: auto; touch-action: pan-y; }
+  .dashboard-screen > .chip { font-size: 11px; padding: 2px 6px; }
+  .profile-screen > .panel { max-height: calc(var(--app-height, 100dvh) - 76px); overflow-y: auto; touch-action: pan-y; padding: 12px !important; }
+  .results-screen .topbar .chip { max-width: 36%; font-size: 12px; }
+  .results-screen .topbar .tag { font-size: 15px !important; }
 }

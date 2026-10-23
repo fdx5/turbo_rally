@@ -9,6 +9,7 @@ import { music } from '../../audio/music';
 import { Modal, sfx } from '../common';
 import { startRaceFlow } from '../raceFlow';
 import { SettingsBody } from './Settings';
+import { toggleGameFullscreen } from '../../core/mobileDisplay';
 
 const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
@@ -19,6 +20,7 @@ export function RaceView() {
   const { trackId, mode, difficulty, go } = useApp();
   const [settings, setSettings] = useState(false);
   const setPaused = (v: boolean) => {
+    input.reset();
     const r = getShell().race;
     if (r) r.paused = v;
     useHud.getState().set({ paused: v });
@@ -31,6 +33,9 @@ export function RaceView() {
     }, 50);
     return () => clearInterval(id);
   }, [phase]);
+  useEffect(() => {
+    if (paused) input.reset();
+  }, [paused]);
   return (
     <>
       {phase === 'loading' && (
@@ -101,12 +106,7 @@ export function RaceView() {
   );
 }
 function toggleFullscreen() {
-  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-  else
-    document.documentElement
-      .requestFullscreen?.()
-      .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape'))
-      .catch(() => {});
+  void toggleGameFullscreen();
 }
 function audio_pause() {
   import('../../audio/engine').then(({ audio }) => audio.ctx?.suspend());

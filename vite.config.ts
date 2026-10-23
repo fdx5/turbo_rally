@@ -48,7 +48,10 @@ export default defineConfig(({ mode }) => {
           description: '귀염뽀짝 파스텔 3D 카트 레이싱',
           theme_color: '#ff5c93',
           background_color: '#ffe9f2',
-          display: 'standalone',
+          id: '/',
+          display: 'fullscreen',
+          display_override: ['fullscreen', 'standalone'],
+          scope: '/',
           orientation: 'landscape',
           start_url: '/',
           icons: [

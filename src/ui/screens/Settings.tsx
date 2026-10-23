@@ -10,12 +10,16 @@ import { Achievements } from './Dashboard';
 import { CHAR_BY_ID } from '../../data/characters';
 import { portrait } from '../portraits';
 import { useApp } from '../../game/app';
+import { input } from '../../core/input';
+import { toggleGameFullscreen } from '../../core/mobileDisplay';
+import { InstallButton } from '../MobileDisplay';
 
 export function SettingsBody() {
   const s = useSettings();
+  const [touchMessage, setTouchMessage] = useState('');
   const row = (label: string, el: React.ReactNode) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #E8EFF8' }}>
-      <span style={{ width: 150 }}>{label}</span>
+    <div className="settings-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #E8EFF8' }}>
+      <span style={{ width: 150, flexShrink: 0 }}>{label}</span>
       {el}
     </div>
   );
@@ -37,7 +41,14 @@ export function SettingsBody() {
         <button
           key={v}
           className={`tab ${s[k] === v ? 'on' : ''}`}
-          onClick={() => {
+          onClick={async () => {
+            if (k === 'touchSteer' && v === 'tilt') {
+              if (!await input.enableTilt()) {
+                setTouchMessage('기울기 권한을 허용해 주세요. 지원되지 않으면 가상 스틱을 이용할 수 있어요.');
+                return;
+              }
+              setTouchMessage('지금 들고 있는 각도를 중앙으로 맞췄어요.');
+            }
             sfx.click();
             s.set({ [k]: v } as Partial<typeof s>);
           }}
@@ -77,6 +88,10 @@ export function SettingsBody() {
         ]),
       )}
       {row('자동 가속(터치)', toggle('autoAccel'))}
+      {row('조향 민감도', <><input aria-label="조향 민감도" type="range" min="0.7" max="1.4" step="0.05" value={s.touchSensitivity} onChange={e => s.set({ touchSensitivity: +e.target.value })} /><span>{Math.round(s.touchSensitivity * 100)}%</span></>)}
+      {row('터치 버튼 크기', <><input aria-label="터치 버튼 크기" type="range" min="0.85" max="1.2" step="0.05" value={s.touchScale} onChange={e => s.set({ touchScale: +e.target.value })} /><span>{Math.round(s.touchScale * 100)}%</span></>)}
+      {row('드리프트 방식', <div className="tabs">{[[false, '누르고 유지'], [true, '눌러서 켜기/끄기']].map(([value, label]) => <button key={String(value)} className={`tab ${s.touchDriftToggle === value ? 'on' : ''}`} onClick={() => s.set({ touchDriftToggle: value as boolean })}>{label as string}</button>)}</div>)}
+      {touchMessage && <p style={{ fontSize: 14, color: '#2F6FDB' }}>{touchMessage}</p>}
       {row('화면 흔들림', toggle('screenShake'))}
       {row('1시간 휴식 알림', toggle('restReminder'))}
       {row('룸미러(후방 화면)', toggle('rearMirror'))}
@@ -98,11 +113,12 @@ export function SettingsBody() {
         '전체 화면',
         <button
           className="tab"
-          onClick={() => (document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.())}
+          onClick={() => void toggleGameFullscreen()}
         >
           전환
         </button>,
       )}
+      {row('주소창 없이 실행', <InstallButton />)}
       {row('BRAND_MODE', <span className="chip">{BRAND_MODE === 'real' ? 'real (실제 로고)' : 'parody (패러디)'}</span>)}
       <div style={{ fontSize: 14, color: '#4B5A78', marginTop: 10, lineHeight: 1.6 }}>
         ⌨️ 조작: 방향키/WASD 이동 · Space 드리프트/공중 360° 트릭 · Shift/E 아이템 · Q 고유기 · C 뒤 보기 · Esc 일시정지 · 🎮 게임패드 지원
@@ -182,7 +198,7 @@ export function Profile() {
   const set = useApp((s) => s.set);
   useEffect(() => getShell().showroom.setMode('menu'), []);
   return (
-    <div className="screen">
+    <div className="screen profile-screen">
       <TopBar title="프로필" />
       <div className="panel" style={{ margin: '10px auto', padding: 20, width: 'min(620px, 94vw)' }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>

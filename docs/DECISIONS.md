@@ -1,5 +1,29 @@
 # Decisions
 
+- **iPhone landscape controls and visible viewport (2026-10-23):** size the canvas,
+  HUD, menus and dialogs from VisualViewport, including Safari's expanded URL bar,
+  keyboard offsets and safe insets. The renderer and rear-view viewport share those
+  dimensions. A 568x230 visible area remains usable: difficulty cards stay in one
+  row, character choices scroll horizontally with Next separate, vehicle Start stays
+  reachable, dashboard/shop tabs scroll, and dialogs/settings scroll internally.
+  Touch controls use a floating origin, progressive dead zone, frame-independent
+  steering smoothing and independent pointer ownership. Release, cancel, capture
+  loss, pause, app switching and orientation changes cannot leave controls held.
+  Manual throttle, sensitivity/size settings, optional latched drift and calibrated
+  sensor control are available. Automatic throttle starts after the countdown,
+  avoiding inadvertent rocket-start overheating. No driving-physics advantage is
+  applied to mobile users.
+  A shared fullscreen request runs in the original race-start gesture; unsupported
+  requests preserve playable browser mode. Install buttons use a deferred native
+  install prompt where supplied, and explicit Share / Add to Home Screen guidance
+  on iOS. iPhone Safari exposes no web API that confirms Home Screen installation
+  for the user. Apple standalone metadata and the fullscreen/standalone manifest
+  make Home Screen launches omit the URL bar. No fake installation success is shown.
+  Validation: 179 tests and production build; WebKit + Chrome controls checks at
+  six viewport/inset combinations; actual menu-to-race flows at 568x230, 844x250 and
+  844x390. Real-device iPhone Safari chrome and the OS install confirmation remain
+  outside desktop browser emulation.
+
 - **Opaque cave vaults and enclosed lighting (2026-10-22):** scenery conversion had
   replaced a double-sided cave material with a front-sided material, culling the
   entire roof from inside. Crossing-clearance pruning also removed roof triangles.

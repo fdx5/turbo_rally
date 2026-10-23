@@ -25,11 +25,17 @@ export class GameShell {
     input.attach();
     this.loop = this.loop.bind(this);
     this.raf = requestAnimationFrame(this.loop);
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.race && this.race.phase === 'race') {
+    const pauseInactive = () => {
+      input.reset();
+      if (this.race && (this.race.phase === 'race' || this.race.phase === 'countdown')) {
         this.race.paused = true;
         useHud.getState().set({ paused: true });
       }
+    };
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pauseInactive(); });
+    window.addEventListener('blur', pauseInactive);
+    window.addEventListener('resize', () => {
+      if (navigator.maxTouchPoints > 0 && window.innerHeight > window.innerWidth) pauseInactive();
     });
   }
   startRace(cfg: RaceConfig, onFinish: (r: RaceResult) => void) {

@@ -10,6 +10,9 @@ export interface Settings {
   screenShake: boolean;
   autoAccel: boolean;
   touchSteer: 'stick' | 'buttons' | 'tilt';
+  touchSensitivity: number;
+  touchScale: number;
+  touchDriftToggle: boolean;
   restReminder: boolean;
   showFps: boolean;
   rearMirror: boolean;
@@ -23,6 +26,9 @@ const DEFAULTS: Settings = {
   screenShake: true,
   autoAccel: true,
   touchSteer: 'stick',
+  touchSensitivity: 1,
+  touchScale: 1,
+  touchDriftToggle: false,
   restReminder: true,
   showFps: false,
   rearMirror: true,
