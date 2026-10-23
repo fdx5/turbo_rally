@@ -6,6 +6,7 @@ import type { Entrant, RaceConfig } from '../race/race';
 import type { Profile } from '../../shared/progress';
 import type { Difficulty } from '../ai/driver';
 import { globalRng } from '../core/rng';
+import { TRACK_BY_ID } from '../data/tracks';
 
 /**
  * 8-kart field composition (§4.3): every character races, AI vehicles are 7 distinct ones
@@ -52,7 +53,7 @@ export function buildField(p: Profile, mode: RaceConfig['mode'], trackId: string
       if (gridOrder.length !== 8) gridOrder = globalRng.shuffle(entrants.map((_, i) => i));
     } else gridOrder = globalRng.shuffle(entrants.map((_, i) => i));
   }
-  return { trackId, mode, difficulty, player, ai, gridOrder, laps: 3 };
+  return { trackId, mode, difficulty, player, ai, gridOrder, laps: TRACK_BY_ID[trackId]?.laps ?? 3 };
 }
 
 function randomLoadout() {

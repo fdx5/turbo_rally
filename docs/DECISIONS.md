@@ -147,3 +147,5 @@
 - **UI style**: sticker style (ink outline, hard offset shadow, flat fills, SVG icon set) instead of glossy
   gradients / glassmorphism / emoji, per user feedback ("AI처럼 보이지 않게").
 - **Guest soft-gate** (5 races) only applies when the API server is reachable, so offline play is never blocked.
+
+- **Independent long-form circuits (2026-10-23):** rebuild all sixteen main outlines and 54 optional routes, with 3/4-lap course settings and 2?3 minute normal-AI mean laps. Junction choices are categorical, persistent and personality-weighted; branch rejoin targeting, progress continuity, stale projection recovery and portal clearance are corrected. Version new records/ghosts while preserving progression and history. See `docs/COURSE_LAYOUTS.md` for the catalog, calibration method and validation.

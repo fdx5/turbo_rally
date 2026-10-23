@@ -131,7 +131,7 @@ describe('all-track driving regression', () => {
       k.place(world, 0, 0);
       let travelled = 0, last = 0, falls = 0;
       const pr = new Proj();
-      for (let step = 0; step < 120 * 120 && travelled < main.length; step++) {
+      for (let step = 0; step < 240 * 120 && travelled < main.length; step++) {
         const ctl = ai.update(1 / 120, k, { world, dangers: [], boxes: [], playerDist: travelled,
           myDist: travelled, hasItem: true, wantsBoost: false, time: step / 120 });
         k.step(1 / 120, ctl, world);

@@ -142,9 +142,8 @@ export function TrackSelect() {
                 </div>
                 <div style={{ fontSize: 20, marginTop: 8 }}>{t.name}</div>
                 <div style={{ fontSize: 12, color: '#24618A', margin: '5px 0', fontWeight: 700 }}>
-                  {Math.round(Math.min(...t.points.map((p) => p[1])))}–
-                  {Math.round(Math.max(...t.points.map((p) => p[1])))}m · {t.shortcuts.length + 1}개 경로 ·
-                  급커브 · 급경사 · 점프
+                  {(t.lengthM / 1000).toFixed(2)}km · {t.laps}랩 · 평균 랩 {Math.floor(t.lapTargetMs / 60000)}분 {Math.round(t.lapTargetMs % 60000 / 1000)}초
+                  <br />분기 {t.shortcuts.length}개 · 급커브 · 고저차 · 점프
                 </div>
                 <div style={{ fontSize: 13, color: '#4B5A78', minHeight: 34 }}>{t.desc}</div>
                 <div

@@ -32,6 +32,12 @@ export async function ready(): Promise<Client> {
         .map((s) => s.replace(/^\s*--.*$/gm, '').trim())
         .filter(Boolean);
       await c.batch(stmts, 'write');
+      // Additive, idempotent migration: old races stay available in history.
+      for (const table of ['races', 'time_attack_records']) {
+        const columns = await c.execute(`PRAGMA table_info(${table})`);
+        if (!columns.rows.some(row => row.name === 'layout_version'))
+          await c.execute(`ALTER TABLE ${table} ADD COLUMN layout_version INTEGER NOT NULL DEFAULT 1`);
+      }
     })().catch((e) => {
       migrated = null;
       throw e;

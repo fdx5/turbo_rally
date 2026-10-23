@@ -65,19 +65,19 @@ describe('api', () => {
     expect(bad.status).toBe(422);
     const s2 = await call('race/start', { trackId: 't1', mode: 'race', difficulty: 'normal' });
     // wall-clock check: race "finished" 130s after a ticket issued now -> clock mismatch
-    const tooFast = await call('race/finish', { ...base, raceId: s2.json.raceId, token: s2.json.token, position: 1, totalMs: 130000, bestLapMs: 42000, lapTimes: [44000, 43000, 43000] });
+    const tooFast = await call('race/finish', { ...base, raceId: s2.json.raceId, token: s2.json.token, position: 1, totalMs: 520000, bestLapMs: 42000, lapTimes: [44000, 43000, 43000] });
     expect(tooFast.status).toBe(422);
   });
   it('valid race is accepted, gold computed on server and persisted', async () => {
     const { signToken } = await import('../api/_lib/auth');
     const { ready } = await import('../api/_lib/db');
     const me = (await call('auth/me')).json.profile;
-    const t = Date.now() - 140000;
+    const t = Date.now() - 550000;
     const rid = 'race-valid-1';
     await (await ready()).execute({ sql: 'INSERT INTO race_tickets VALUES (?,?,?,?,?,?,0)', args: [rid, me.userId, 't2', 'race', 'normal', t] });
     const token = await signToken({ rid, sub: me.userId, t, track: 't2', mode: 'race', diff: 'normal' }, '2h');
-    const body = { raceId: rid, token, mode: 'race', trackId: 't2', difficulty: 'normal', charId: 'momo', vehicleId: 'coupang', position: 2, totalMs: 136000, bestLapMs: 44000, lapTimes: [46000, 45000, 45000], coins: 5, mt3: 3, hitsDealt: 2,
-      entrants: [{ charId: 'momo', vehicleId: 'coupang', name: '테스터', isPlayer: true, position: 2, totalMs: 136000 }], items: { jelly: { used: 2, hits: 1, gotHit: 0 } } };
+    const body = { raceId: rid, token, mode: 'race', trackId: 't2', difficulty: 'normal', charId: 'momo', vehicleId: 'coupang', position: 2, totalMs: 540000, bestLapMs: 134000, lapTimes: [136000, 135000, 135000, 134000], coins: 5, mt3: 3, hitsDealt: 2,
+      entrants: [{ charId: 'momo', vehicleId: 'coupang', name: '테스터', isPlayer: true, position: 2, totalMs: 540000 }], items: { jelly: { used: 2, hits: 1, gotHit: 0 } } };
     const r = await call('race/finish', body);
     expect(r.status).toBe(200);
     // 2nd place 1100 ×1.25 diff, first podium +3000, coins +50, first race today ×2
@@ -136,12 +136,12 @@ describe('api', () => {
     const guestId = 'guest-abcd1234';
     expect((await call('race/start', { trackId: 't1', mode: 'race', difficulty: 'normal' })).status).toBe(401);
     expect((await call('race/start', { trackId: 't1', mode: 'race', difficulty: 'normal', guestId })).status).toBe(200);
-    const t = Date.now() - 140000;
+    const t = Date.now() - 550000;
     const rid = 'race-guest-1';
     await (await ready()).execute({ sql: 'INSERT INTO race_tickets VALUES (?,?,?,?,?,?,0)', args: [rid, 'g:' + guestId, 't2', 'race', 'normal', t] });
     const token = await signToken({ rid, sub: 'g:' + guestId, t, track: 't2', mode: 'race', diff: 'normal' }, '2h');
-    const body = { raceId: rid, token, guestId, gold: 1234, mode: 'race', trackId: 't2', difficulty: 'normal', charId: 'momo', vehicleId: 'coupang', position: 1, totalMs: 130000, bestLapMs: 42000, lapTimes: [44000, 43000, 43000], coins: 3, mt3: 1, hitsDealt: 0,
-      entrants: [{ charId: 'momo', vehicleId: 'coupang', name: '게스트', isPlayer: true, position: 1, totalMs: 130000 }], items: {} };
+    const body = { raceId: rid, token, guestId, gold: 1234, mode: 'race', trackId: 't2', difficulty: 'normal', charId: 'momo', vehicleId: 'coupang', position: 1, totalMs: 520000, bestLapMs: 129000, lapTimes: [131000, 130000, 130000, 129000], coins: 3, mt3: 1, hitsDealt: 0,
+      entrants: [{ charId: 'momo', vehicleId: 'coupang', name: '게스트', isPlayer: true, position: 1, totalMs: 520000 }], items: {} };
     // another guest cannot submit this ticket
     expect((await call('race/finish', { ...body, guestId: 'guest-other' })).status).toBe(403);
     expect((await call('race/finish', body)).status).toBe(200);
@@ -151,10 +151,29 @@ describe('api', () => {
     expect(all.json.races[0].gold).toBe(1234);
     expect((await call('records/races?mine=1')).status).toBe(401);
     const tr = await call('records/tracks');
-    expect(tr.json.tracks.t2).toMatchObject({ plays: 2, players: 2, race: { nickname: '게스트#1234', ms: 130000 } });
+    expect(tr.json.tracks.t2).toMatchObject({ plays: 2, players: 2, race: { nickname: '게스트#1234', ms: 520000 } });
     cookie = memberCookie;
     const mine = await call('records/races?mine=1');
     expect(mine.json.races.every((r: { nickname: string }) => r.nickname === '테스터')).toBe(true);
+  });
+  it('replaces retired short-course times with a validated three-lap record', async () => {
+    const { signToken } = await import('../api/_lib/auth');
+    const { ready } = await import('../api/_lib/db');
+    const c = await ready(), me = (await call('auth/me')).json.profile;
+    await c.execute({ sql: `INSERT INTO time_attack_records (user_id, track_id, vehicle_id, character_id, total_ms, best_lap_ms, created_at, ghost_blob)
+      VALUES (?,?,?,?,?,?,?,?)`, args: [me.userId, 't3', 'coupang', 'momo', 100000, 33000, 1, 'retired-ghost'] });
+    expect((await call('auth/me')).json.profile.bestTA.t3).toBeUndefined();
+    const rid = 'new-layout-ta', t = Date.now() - 460000;
+    await c.execute({ sql: 'INSERT INTO race_tickets VALUES (?,?,?,?,?,?,0)', args: [rid, me.userId, 't3', 'timeattack', 'normal', t] });
+    const token = await signToken({ rid, sub: me.userId, t, track: 't3', mode: 'timeattack', diff: 'normal' }, '2h');
+    const r = await call('race/finish', { raceId: rid, token, trackId: 't3', mode: 'timeattack', difficulty: 'normal', charId: 'momo', vehicleId: 'coupang',
+      position: 1, totalMs: 450000, bestLapMs: 150000, lapTimes: [150000,150000,150000], coins: 0, mt3: 0, hitsDealt: 0, entrants: [], items: {} });
+    expect(r.status).toBe(200);
+    expect(r.json.profile.bestTA.t3).toMatchObject({ ms: 450000, layoutVersion: 2 });
+    const row = (await c.execute({ sql: 'SELECT layout_version, ghost_blob FROM time_attack_records WHERE user_id = ? AND track_id = ?', args: [me.userId, 't3'] })).rows[0];
+    expect(row.layout_version).toBe(2);
+    expect(row.ghost_blob).toBeNull();
+    expect((await call('timeattack/leaderboard?track=t3')).json.rows[0].totalMs).toBe(450000);
   });
   it('login lockout after 5 failures', async () => {
     for (let i = 0; i < 5; i++) await call('auth/login', { username: 'tester_01', password: 'nope12345' });

@@ -63,6 +63,10 @@ export interface TrackDef {
   theme: ThemeId;
   bpm: number;
   desc: string;
+  laps: 3 | 4;
+  /** Typical normal-difficulty lap across route choices, before incidents (milliseconds). */
+  lapTargetMs: number;
+  lengthM: number;
   points: Vec3T[];
   width: number | number[];
   shoulder?: number;

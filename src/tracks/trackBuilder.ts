@@ -112,7 +112,7 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
   main.pointAt(sc.fromU * L, 0, a);
   main.pointAt(sc.toU * L, 0, b);
   // Long tangent overlaps prevent tight hooks and folded ribbon edges at joins.
-  const overlap = 44;
+  const overlap = 90;
   const a0 = new THREE.Vector3();
   const b1 = new THREE.Vector3();
   main.pointAt(sc.fromU * L - overlap, 0, a0);
@@ -121,7 +121,8 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
     const k = (i + 1) / (sc.via.length + 1);
     return [x, y || a.y + (b.y - a.y) * k, z];
   });
-  const pts: Vec3T[] = [[a0.x, a0.y, a0.z], [a.x, a.y, a.z], ...via, [b.x, b.y, b.z], [b1.x, b1.y, b1.z]];
+  const pts: Vec3T[] = [[a0.x, a0.y, a0.z], [a.x, a.y, a.z], ...via,
+    [b.x, b.y, b.z], [b1.x, b1.y, b1.z]];
   const rounded = roundRoute(pts, false);
   const p = new TrackPath(
     rounded,
@@ -137,10 +138,10 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
   for (let i = 0; i < p.n; i++) {
     const distance = Math.min(i * p.ds, p.length - i * p.ds);
     const endInfluence =
-      1 - THREE.MathUtils.smoothstep(distance, Math.min(135, p.length * 0.3), Math.min(200, p.length * 0.46));
+      1 - THREE.MathUtils.smoothstep(distance, Math.min(360, p.length * 0.45), Math.min(480, p.length * 0.5));
     if (endInfluence <= 0) continue;
     const joinHint = main.idxAtS(i * p.ds < p.length / 2 ? p.mainS0 + distance : p.mainS1 - distance);
-    main.project(p.px[i], main.py[joinHint], p.pz[i], joinHint, join, 160);
+    main.project(p.px[i], main.py[joinHint], p.pz[i], joinHint, join, 160, 3, false);
     // Keep the ENTIRE shared junction in one plane. A branch only climbs after its
     // full width clears the main road; otherwise its deck/railing cuts through traffic.
     const sharedWidth = join.halfW + p.halfW[i] + p.shoulderL[i] + 4;
@@ -149,13 +150,21 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
     p.py[i] += (join.y - p.py[i]) * blend;
     if (blend > 0.999)
       for (let pass = 0; pass < 3; pass++) {
-        main.project(p.px[i], p.py[i], p.pz[i], -1, join);
+        main.project(p.px[i], p.py[i], p.pz[i], join.idx, join, 4, 3, false);
         p.py[i] = join.y;
       }
     const h = Math.hypot(join.fx, join.fz) || 1;
     const gx = ((join.fx / h) * join.fy) / h + join.hx * join.bankTan;
     const gz = ((join.fz / h) * join.fy) / h + join.hz * join.bankTan;
     p.bankTan[i] = (gx * p.hx[i] + gz * p.hz[i]) * blend;
+  }
+  for (let i = 0; i < p.n; i++) {
+    const a = p.wrap(i - 1), b = p.wrap(i + 1);
+    const dx = p.px[b] - p.px[a], dy = p.py[b] - p.py[a], dz = p.pz[b] - p.pz[a];
+    const length = Math.hypot(dx, dy, dz) || 1;
+    p.fx[i] = dx / length;
+    p.fy[i] = dy / length;
+    p.fz[i] = dz / length;
   }
   p.baseSurface = SURF[sc.surface];
   // Narrow the inside of a branch hairpin smoothly rather than folding a wide ribbon.
@@ -168,6 +177,23 @@ function buildShortcut(main: TrackPath, sc: ShortcutDef): TrackPath {
     p.halfW[i] = width;
   }
   p.loops = (sc.loops ?? []).map((l) => ({ s0: l.u0 * p.length, s1: l.u1 * p.length, radius: l.radius }));
+  // Preserve physical stationing at the common ribbons. A single linear mapping
+  // across a short cut used to jump the ranking/progress backwards at its merge.
+  p.mainProgress = new Float32Array(p.n);
+  let leave = 0, enter = p.n - 1;
+  for (const side of [0, 1]) {
+    for (let n = 0; n < p.n / 2; n++) {
+      const i = side ? p.n - 1 - n : n;
+      const distance = n * p.ds;
+      const expected = side ? p.mainS1 - distance : p.mainS0 + distance;
+      main.project(p.px[i], p.py[i], p.pz[i], main.idxAtS(expected), join, 100, 3, false);
+      if (Math.abs(join.t) > join.halfW + p.halfW[i] + 8 || Math.abs(join.y - p.py[i]) > .5) break;
+      p.mainProgress[i] = join.s;
+      if (side) enter = i; else leave = i;
+    }
+  }
+  const startS = p.mainProgress[leave], endS = p.mainProgress[enter];
+  for (let i = leave + 1; i < enter; i++) p.mainProgress[i] = startS + (endS - startS) * (i - leave) / (enter - leave);
   return p;
 }
 

@@ -8,8 +8,10 @@ import { validateRace } from '../../shared/economy';
 import { VEHICLE_BY_ID } from '../../src/data/vehicles';
 import { CHAR_BY_ID, type CharId } from '../../src/data/characters';
 import type { InStatement } from '@libsql/client';
+import { TRACK_BY_ID } from '../../src/data/tracks';
+import { TRACK_LAYOUT_VERSION } from '../../src/data/trackLayout';
 
-const RACE_INSERT = 'INSERT INTO races (id, user_id, guest_id, mode, track_id, difficulty, character_id, vehicle_id, position, total_ms, best_lap_ms, coins, gold_earned, started_at, finished_at, valid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+const RACE_INSERT = 'INSERT INTO races (id, user_id, guest_id, mode, track_id, difficulty, character_id, vehicle_id, position, total_ms, best_lap_ms, coins, gold_earned, started_at, finished_at, valid, layout_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
 
 /**
  * Server-side gold calculation & anti-cheat validation (§12.2). Guests (no session) only get their
@@ -28,9 +30,9 @@ export default route(['POST'], async (req) => {
   const c = await ready();
   const t = await c.execute({ sql: 'UPDATE race_tickets SET used = 1 WHERE race_id = ? AND user_id = ? AND used = 0', args: [b.raceId, sub] });
   if (!t.rowsAffected) throw new HttpError(409, '이미 제출된 레이스예요');
-  const laps = b.mode === 'practice' ? Math.max(1, b.lapTimes.length) : 3;
+  const laps = b.mode === 'practice' ? Math.max(1, b.lapTimes.length) : (TRACK_BY_ID[b.trackId]?.laps ?? 3);
   const err = validateRace({ ...b, laps }, Date.now() - tk.t);
-  const race = (gold: number, valid: number): InStatement => ({ sql: RACE_INSERT, args: [b.raceId, uid, guestId, b.mode, b.trackId, b.difficulty, b.charId, b.vehicleId, b.position, b.totalMs, b.bestLapMs, b.coins, gold, tk.t, Date.now(), valid] });
+  const race = (gold: number, valid: number): InStatement => ({ sql: RACE_INSERT, args: [b.raceId, uid, guestId, b.mode, b.trackId, b.difficulty, b.charId, b.vehicleId, b.position, b.totalMs, b.bestLapMs, b.coins, gold, tk.t, Date.now(), valid, TRACK_LAYOUT_VERSION] });
   if (err) {
     await c.execute(race(0, 0));
     throw new HttpError(422, `비정상 기록으로 판정되었어요 (${err})`);

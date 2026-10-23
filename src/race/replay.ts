@@ -4,7 +4,7 @@ import { Proj, type TrackPath } from '../tracks/path';
 import { groundPose } from './groundPose';
 
 const MAGIC = -731601,
-  VERSION = 3,
+  VERSION = 4,
   STRIDE = 12,
   RATE = 0.05;
 const qa = new THREE.Quaternion(),

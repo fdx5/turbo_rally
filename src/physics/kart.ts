@@ -582,7 +582,7 @@ export class KartBody {
     if (this.onPath === 0) this.progressS = s;
     else
       this.progressS =
-        (path.mainS0 + ((path.mainS1 - path.mainS0) * s) / path.length + world.main.length) %
+        (path.mainSAt(s) + world.main.length) %
         world.main.length;
     if (!path.loopAt(s)) {
       this.loopActive = false;
@@ -634,9 +634,8 @@ export class KartBody {
     // progress on main path
     if (best === 0) this.progressS = pr.s;
     else {
-      const k = pr.s / p.length;
       const L = world.main.length;
-      let s = p.mainS0 + (p.mainS1 - p.mainS0) * k;
+      let s = p.mainSAt(pr.s);
       s = ((s % L) + L) % L;
       this.progressS = s;
     }

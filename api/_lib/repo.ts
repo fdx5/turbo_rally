@@ -5,6 +5,7 @@ import { COSMETIC_BY_ID } from '../../src/data/cosmetics';
 import { WEAPON_BY_ID } from '../../src/data/items';
 import type { CharId } from '../../src/data/characters';
 import type { CosCategory } from '../../src/data/cosmetics';
+import { TRACK_LAYOUT_VERSION } from '../../src/data/trackLayout';
 
 /** Fields of Profile that have no dedicated table live in profiles.extra_json. */
 const EXTRA_KEYS = ['podiumTracks', 'bestRace', 'counters', 'titles', 'title', 'winStreak', 'guestRaces', 'attendance', 'weekly', 'recentVehicles', 'createdAt'] as const;
@@ -20,7 +21,7 @@ export async function loadProfile(userId: string, withRaces = 200): Promise<Prof
       { sql: 'SELECT * FROM profiles WHERE user_id = ?', args: [userId] },
       { sql: 'SELECT kind, ref_id FROM unlocks WHERE user_id = ?', args: [userId] },
       { sql: 'SELECT track_id, stars FROM track_stars WHERE user_id = ?', args: [userId] },
-      { sql: 'SELECT track_id, vehicle_id, character_id, total_ms, best_lap_ms, created_at FROM time_attack_records WHERE user_id = ?', args: [userId] },
+      { sql: 'SELECT track_id, vehicle_id, character_id, total_ms, best_lap_ms, created_at FROM time_attack_records WHERE user_id = ? AND layout_version = ?', args: [userId, TRACK_LAYOUT_VERSION] },
       { sql: 'SELECT item_id FROM inventory WHERE user_id = ? ORDER BY acquired_at', args: [userId] },
       { sql: 'SELECT character_id, slot, item_id FROM equipment WHERE user_id = ?', args: [userId] },
       { sql: 'SELECT slot, weapon_id FROM weapon_loadout WHERE user_id = ? ORDER BY slot', args: [userId] },
@@ -53,7 +54,7 @@ export async function loadProfile(userId: string, withRaces = 200): Promise<Prof
   p.unlockedTracks = [...new Set([...p.unlockedTracks, ...un.rows.filter((r) => r.kind === 'track').map((r) => s(r.ref_id))])];
   p.unlockedVehicles = [...new Set([...p.unlockedVehicles, ...un.rows.filter((r) => r.kind === 'vehicle').map((r) => s(r.ref_id))])];
   for (const r of st.rows) p.stars[s(r.track_id)] = n(r.stars);
-  for (const r of ta.rows) p.bestTA[s(r.track_id)] = { ms: n(r.total_ms), lap: n(r.best_lap_ms), vehicleId: s(r.vehicle_id), charId: s(r.character_id), at: n(r.created_at) };
+  for (const r of ta.rows) p.bestTA[s(r.track_id)] = { ms: n(r.total_ms), lap: n(r.best_lap_ms), vehicleId: s(r.vehicle_id), charId: s(r.character_id), at: n(r.created_at), layoutVersion: TRACK_LAYOUT_VERSION };
   p.inventory = inv.rows.map((r) => s(r.item_id));
   for (const r of eq.rows) ((p.equipment[s(r.character_id) as CharId] ??= {}) as Record<string, string>)[s(r.slot)] = s(r.item_id);
   p.weaponLoadout = wl.rows.map((r) => s(r.weapon_id));
@@ -188,9 +189,9 @@ export function diffStatements(userId: string, a: Profile, b: Profile): InStatem
     const prev = a.bestTA[t];
     if (!prev || prev.ms !== r.ms)
       out.push({
-        sql: `INSERT INTO time_attack_records (user_id, track_id, vehicle_id, character_id, total_ms, best_lap_ms, created_at) VALUES (?,?,?,?,?,?,?)
-              ON CONFLICT(user_id, track_id) DO UPDATE SET vehicle_id=excluded.vehicle_id, character_id=excluded.character_id, total_ms=excluded.total_ms, best_lap_ms=excluded.best_lap_ms, created_at=excluded.created_at`,
-        args: [userId, t, r.vehicleId, r.charId, r.ms, r.lap, r.at],
+        sql: `INSERT INTO time_attack_records (user_id, track_id, vehicle_id, character_id, total_ms, best_lap_ms, created_at, layout_version) VALUES (?,?,?,?,?,?,?,?)
+              ON CONFLICT(user_id, track_id) DO UPDATE SET vehicle_id=excluded.vehicle_id, character_id=excluded.character_id, total_ms=excluded.total_ms, best_lap_ms=excluded.best_lap_ms, created_at=excluded.created_at, layout_version=excluded.layout_version, ghost_blob=NULL`,
+        args: [userId, t, r.vehicleId, r.charId, r.ms, r.lap, r.at, TRACK_LAYOUT_VERSION],
       });
   }
   for (const it of b.inventory)

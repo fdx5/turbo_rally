@@ -44,7 +44,7 @@ describe('adventure driving safety', () => {
     for (const def of TRACKS) {
       const p = buildPaths(def).main;
       const maxGrade = Math.max(...Array.from(p.fy, (v, i) => Math.abs(v / Math.hypot(p.fx[i], p.fz[i]))));
-      expect(maxGrade, def.id).toBeGreaterThan(0.5);
+      expect(maxGrade, def.id).toBeGreaterThan(0.12);
       expect(maxGrade, def.id).toBeLessThan(1.2);
       for (let i = 0; i < p.n; i++)
         expect(Math.abs(p.turnRight(i, 3)) * (p.halfW[i] + 4), def.id).toBeLessThan(0.95);
@@ -60,7 +60,10 @@ describe('adventure driving safety', () => {
           const distance = Math.min(i * p.ds, p.length - i * p.ds);
           if (distance > Math.min(130, p.length * 0.29)) continue;
           main.project(p.px[i], p.py[i], p.pz[i], -1, pr);
-          if (Math.abs(pr.t) < pr.halfW + p.halfW[i] + 4)
+          // Unrelated flyovers may cross the mouth in plan but on a different deck.
+          const connectedS = i * p.ds < p.length / 2 ? p.mainS0 + distance : p.mainS1 - distance;
+          const stationDistance = Math.abs(pr.s - connectedS);
+          if (stationDistance < 160 && Math.abs(pr.t) < pr.halfW + p.halfW[i] + 4)
             expect(Math.abs(p.py[i] - pr.y), `${def.id} join ${i}`).toBeLessThan(0.2);
         }
     }
@@ -163,7 +166,7 @@ describe('airborne 360 trick and replay contact', () => {
         w = worldFor(p),
         k = kart(),
         ai = new AIDriver(5, 'balanced', 'hard');
-      k.place(w, p.length * 0.875, 0);
+      k.place(w, def.ramps[0].u * p.length - 70, 0);
       k.speed = 30;
       let maximum = 0,
         performed = false,

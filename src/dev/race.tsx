@@ -10,6 +10,7 @@ import { CHARACTERS, type CharId } from '../data/characters';
 import { VEHICLES } from '../data/vehicles';
 import { useHud } from '../ui/hudStore';
 import { TouchControls } from '../ui/Touch';
+import { TRACK_BY_ID } from '../data/tracks';
 
 const q = new URLSearchParams(location.search);
 await loadFonts();
@@ -24,7 +25,7 @@ const session = new RaceSession(
     trackId: q.get('track') ?? 't1',
     mode: (q.get('mode') as 'race') ?? 'race',
     difficulty: 'normal',
-    laps: Number(q.get('laps') ?? 3),
+    laps: Number(q.get('laps') ?? TRACK_BY_ID[q.get('track') ?? 't1']?.laps ?? 3),
     player: { charId, vehicleId, loadout: {}, weapons: ['w_slingshot', 'w_bubblegun', 'w_laser'] },
     ai: others.map((c, i) => ({ charId: c.id, vehicleId: vs[(i * 3) % vs.length].id, loadout: {}, weapons: ['w_duck', 'w_snowball'] })),
   },

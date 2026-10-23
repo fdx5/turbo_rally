@@ -5,6 +5,7 @@
 import { COSMETICS, COSMETIC_BY_ID, WELCOME_HAT, type CosCategory } from '../src/data/cosmetics';
 import { WEAPONS, WEAPON_BY_ID } from '../src/data/items';
 import { TRACKS } from '../src/data/tracks';
+import { TRACK_LAYOUT_VERSION } from '../src/data/trackLayout';
 import { CHARACTERS, type CharId } from '../src/data/characters';
 import {
   START_TRACKS,
@@ -71,8 +72,8 @@ export interface Profile {
   unlockedVehicles: string[];
   stars: Record<string, number>;
   podiumTracks: string[];
-  bestRace: Record<string, { pos: number; ms: number; lap: number }>;
-  bestTA: Record<string, { ms: number; lap: number; vehicleId: string; charId: string; at: number }>;
+  bestRace: Record<string, { pos: number; ms: number; lap: number; layoutVersion?: number }>;
+  bestTA: Record<string, { ms: number; lap: number; vehicleId: string; charId: string; at: number; layoutVersion?: number }>;
   inventory: string[];
   equipment: Partial<Record<CharId, Partial<Record<CosCategory, string>>>>;
   weaponLoadout: string[];
@@ -269,6 +270,10 @@ export function newProfile(guestId: string, nickname = '게스트'): Profile {
 /** Roll daily/weekly state forward (missions, discounts, attendance flags). */
 export function refreshDaily(p: Profile, now = new Date()): boolean {
   let changed = false;
+  // Retain history, unlocks and stars; start comparable best times for the new roads.
+  for (const records of [p.bestRace, p.bestTA])
+    for (const [id, record] of Object.entries(records))
+      if (record.layoutVersion !== TRACK_LAYOUT_VERSION) { delete records[id]; changed = true; }
   const d = today(now);
   if (p.daily.date !== d) {
     p.daily = { date: d, missions: pickMissions(DAILY_POOL, p.guestId + d), firstRaceDone: false, roulette: false, discounts: dailyDiscounts(d), ta: {} };
@@ -391,13 +396,13 @@ export function applyRace(p: Profile, r: RaceApplyInput): RaceApplyOutput {
   if (r.mode === 'timeattack') {
     const prev = p.bestTA[r.trackId];
     personalBest = !prev || r.totalMs < prev.ms;
-    if (personalBest) p.bestTA[r.trackId] = { ms: r.totalMs, lap: r.bestLapMs, vehicleId: r.vehicleId, charId: r.charId, at: Date.now() };
+    if (personalBest) p.bestTA[r.trackId] = { ms: r.totalMs, lap: r.bestLapMs, vehicleId: r.vehicleId, charId: r.charId, at: Date.now(), layoutVersion: TRACK_LAYOUT_VERSION };
     medal = medalFor(r.trackId, r.totalMs);
   } else if (isRace) {
     const prev = p.bestRace[r.trackId];
     personalBest = !!prev && r.totalMs < prev.ms;
     if (!prev || r.position < prev.pos || (r.position === prev.pos && r.totalMs < prev.ms))
-      p.bestRace[r.trackId] = { pos: Math.min(r.position, prev?.pos ?? 9), ms: Math.min(r.totalMs, prev?.ms ?? Infinity), lap: Math.min(r.bestLapMs, prev?.lap ?? Infinity) };
+      p.bestRace[r.trackId] = { pos: Math.min(r.position, prev?.pos ?? 9), ms: Math.min(r.totalMs, prev?.ms ?? Infinity), lap: Math.min(r.bestLapMs, prev?.lap ?? Infinity), layoutVersion: TRACK_LAYOUT_VERSION };
   }
   if (isRace) p.winStreak = r.position === 1 ? p.winStreak + 1 : 0;
   const taKey = r.trackId;

@@ -1,5 +1,6 @@
 import { route } from '../_lib/http';
 import { ready } from '../_lib/db';
+import { TRACK_LAYOUT_VERSION } from '../../src/data/trackLayout';
 
 /** Per-track records across every racer (members and guests): play counts and record holders. */
 export default route(['GET'], async () => {
@@ -7,7 +8,7 @@ export default route(['GET'], async () => {
   const top = (col: string, where: string) => ({
     sql: `SELECT * FROM (SELECT r.track_id, r.${col} ms, r.user_id, COALESCE(u.nickname, '게스트#' || upper(substr(r.guest_id, -4))) nickname, r.character_id, r.vehicle_id,
             ROW_NUMBER() OVER (PARTITION BY r.track_id ORDER BY r.${col} ASC, r.finished_at ASC) rn
-          FROM races r LEFT JOIN users u ON u.id = r.user_id WHERE r.valid = 1 AND r.${col} > 0 AND ${where}) WHERE rn = 1`,
+          FROM races r LEFT JOIN users u ON u.id = r.user_id WHERE r.valid = 1 AND r.layout_version = ${TRACK_LAYOUT_VERSION} AND r.${col} > 0 AND ${where}) WHERE rn = 1`,
     args: [],
   });
   const [agg, race, lap, ta] = await c.batch(
@@ -21,7 +22,7 @@ export default route(['GET'], async () => {
       {
         sql: `SELECT * FROM (SELECT t.track_id, t.total_ms ms, t.user_id, u.nickname, t.character_id, t.vehicle_id,
                 ROW_NUMBER() OVER (PARTITION BY t.track_id ORDER BY t.total_ms ASC, t.created_at ASC) rn
-              FROM time_attack_records t JOIN users u ON u.id = t.user_id) WHERE rn = 1`,
+              FROM time_attack_records t JOIN users u ON u.id = t.user_id WHERE t.layout_version = ${TRACK_LAYOUT_VERSION}) WHERE rn = 1`,
         args: [],
       },
     ],

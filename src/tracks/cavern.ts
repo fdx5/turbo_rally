@@ -130,6 +130,16 @@ export function cavernGeometry(
     for (let col = 0; col <= cols; col++) {
       const a = row * ring + col,
         b = row * ring + ((col + 1) % ring);
+      // A fork can run through a portal as well as a chamber flank. Reserve the
+      // same vehicle envelope at the portal's thick annulus.
+      const corners = [a, b, a + layerSize, b + layerSize].map(k =>
+        new THREE.Vector3().fromArray(positions, k * 3));
+      centre.set(0, 0, 0);
+      corners.forEach(p => centre.add(p));
+      centre.multiplyScalar(.25);
+      const radius = Math.max(...corners.map(p => Math.hypot(p.x - centre.x, p.z - centre.z)));
+      if (blocksRoad(centre.x, centre.z, Math.min(...corners.map(p => p.y)),
+        Math.max(...corners.map(p => p.y)), radius + 1)) continue;
       quad(a, b, a + layerSize, b + layerSize);
     }
   const geometry = new THREE.BufferGeometry();

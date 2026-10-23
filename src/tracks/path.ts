@@ -127,6 +127,7 @@ export class TrackPath {
   /** For shortcut paths: main-path s at start/end (progress mapping). */
   mainS0 = 0;
   mainS1 = 0;
+  mainProgress: Float32Array | null = null;
   baseSurface: Surface = Surface.Road;
   curve: THREE.CatmullRomCurve3;
 
@@ -228,6 +229,13 @@ export class TrackPath {
   idxAtS(s: number) {
     if (this.closed) s = ((s % this.length) + this.length) % this.length;
     return this.wrap(Math.round(s / this.ds));
+  }
+  /** Branch progress agrees with the main ribbon throughout both shared mouths. */
+  mainSAt(s: number) {
+    if (!this.mainProgress) return this.mainS0 + (this.mainS1 - this.mainS0) * s / this.length;
+    const f = Math.max(0, Math.min(this.n - 1, s / this.ds));
+    const a = Math.floor(f), b = Math.min(this.n - 1, a + 1);
+    return this.mainProgress[a] + (this.mainProgress[b] - this.mainProgress[a]) * (f - a);
   }
   /** Signed curvature (rad per metre) around sample i; positive = turning right. */
   turnRight(i: number, span = 8) {
@@ -331,7 +339,7 @@ export class TrackPath {
   }
 
   /** Project world (x,y,z) near hint index. Writes into out. */
-  project(x: number, y: number, z: number, hint: number, out: Proj, window = 40, heightTolerance = 3): Proj {
+  project(x: number, y: number, z: number, hint: number, out: Proj, window = 40, heightTolerance = 3, reacquire = true): Proj {
     const n = this.n;
     let best = -1;
     let bestD = Infinity;
@@ -365,6 +373,10 @@ export class TrackPath {
         best = i;
       }
     }
+    // A shortcut can rejoin hundreds of metres beyond the old main-road hint.
+    // Reacquire spatially rather than dragging that hint along the skipped detour.
+    if (reacquire && window > 4 && bestD > 30 * 30)
+      return this.project(x, y, z, -1, out, 4, heightTolerance);
     // Invert the same bilinear ribbon used by pointAt/rendering. Centre-line-only
     // projection shifts contact along steep banked hairpins and can bury a wheel.
     let i0 = best,

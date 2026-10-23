@@ -123,12 +123,13 @@ export const countStars = (bits: number) => (bits & 1 ? 1 : 0) + (bits & 2 ? 1 :
 /** Minimum plausible lap time (ms) — faster than this is rejected (§12.2). */
 export function minLapMs(trackId: string): number {
   const t = TRACK_BY_ID[trackId];
-  return t ? Math.round(t.medals.gold / 3 / 1.8) : 15000;
+  return t ? Math.round(t.medals.gold / t.laps / 1.8) : 15000;
 }
 export function validateRace(r: { trackId: string; mode: Mode; position: number; totalMs: number; lapTimes: number[]; coins: number; laps: number }, elapsedMs: number): string | null {
   if (!TRACK_BY_ID[r.trackId]) return 'unknown track';
   if (r.position < 1 || r.position > (r.mode === 'race' ? 8 : 1)) return 'bad position';
   if (r.coins < 0 || r.coins > 12) return 'bad coins';
+  if (r.mode !== 'practice' && r.lapTimes.length !== TRACK_BY_ID[r.trackId].laps) return 'bad laps';
   const minLap = minLapMs(r.trackId);
   if (r.totalMs < minLap * r.laps) return 'impossible time';
   if (r.lapTimes.some((l) => l < minLap)) return 'impossible lap';

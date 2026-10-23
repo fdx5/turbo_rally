@@ -21,8 +21,8 @@ describe('catalog', () => {
     for (const t of TRACKS) {
       const p = new TrackPath(t.points, true, t.width);
       console.log(t.id, Math.round(p.length));
-      expect(p.length).toBeGreaterThan(900);
-      expect(p.length).toBeLessThan(2400);
+      expect(p.length).toBeGreaterThan(4000);
+      expect(p.length).toBeLessThan(6000);
     }
   });
 });

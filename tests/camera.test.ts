@@ -83,6 +83,6 @@ describe('road-aware chase camera', () => {
         }
       }
     }
-    expect(descents).toBeGreaterThan(300);
+    expect(descents).toBeGreaterThan(100);
   });
 });
