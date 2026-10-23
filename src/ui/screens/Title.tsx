@@ -34,8 +34,8 @@ export function Title() {
     sh.showroom.setMode('title');
     sh.showroom.setKart(profile.selectedVehicle, profile.selectedChar, profile.equipment[profile.selectedChar] ?? {});
   }, [profile.selectedVehicle, profile.selectedChar, profile.equipment]);
-  const start = async () => {
-    await audio.unlock();
+  const start = () => {
+    void audio.unlock();
     music.play('menu');
     sfx.click();
     say(profile.selectedChar, 'select', { tts: false, vol: 0.8 });
@@ -43,7 +43,7 @@ export function Title() {
   };
   return (
     <div className="screen title-screen" style={{ justifyContent: 'center' }}>
-      <div style={{ marginLeft: '5vw', maxWidth: 520 }}>
+      <div className="title-content" style={{ marginLeft: '5vw', maxWidth: 520 }}>
         <div className="pop-in">
           <Logo width={Math.min(480, window.innerWidth * 0.42)} />
         </div>
@@ -56,11 +56,11 @@ export function Title() {
             {member ? `${profile.nickname}(으)로 시작` : '게스트로 시작'}
           </button>
           {!member && (
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="title-auth-actions" style={{ display: 'flex', gap: 12 }}>
               <button
                 className="btn sky"
-                onClick={async () => {
-                  await audio.unlock();
+                onClick={() => {
+                  void audio.unlock();
                   sfx.click();
                   set({ modal: 'login' });
                 }}
@@ -69,8 +69,8 @@ export function Title() {
               </button>
               <button
                 className="btn mint"
-                onClick={async () => {
-                  await audio.unlock();
+                onClick={() => {
+                  void audio.unlock();
                   sfx.click();
                   set({ modal: 'signup' });
                 }}
@@ -79,8 +79,8 @@ export function Title() {
               </button>
             </div>
           )}
-          {!server && <div className="chip" style={{ fontSize: 14 }}>오프라인 모드 · 게스트 진행도는 이 기기에 저장돼요</div>}
           <div className="mobile-display-actions"><InstallButton /><FullscreenButton /></div>
+          {!server && <div className="chip" style={{ fontSize: 14 }}>오프라인 모드 · 게스트 진행도는 이 기기에 저장돼요</div>}
         </div>
       </div>
     </div>

@@ -64,7 +64,13 @@ class AudioEngine {
   }
   /** iOS/Chrome autoplay unlock: call from a user gesture. */
   async unlock() {
-    const ctx = this.ensure();
+    let ctx: AudioContext;
+    try {
+      ctx = this.ensure();
+    } catch {
+      // Sound availability must never prevent opening login or entering the game.
+      return;
+    }
     if (ctx.state !== 'running') {
       try {
         await ctx.resume();
@@ -72,7 +78,7 @@ class AudioEngine {
         /* ignore */
       }
     }
-    if (!this.renderPromise) this.renderPromise = this.renderAll();
+    if (!this.renderPromise) this.renderPromise = this.renderAll().catch(() => { this.renderPromise = null; });
     return this.renderPromise;
   }
   private async renderAll() {

@@ -29,6 +29,9 @@ export function watchGameViewport() {
     root.style.setProperty('--app-left', `${v.left}px`);
     root.style.setProperty('--app-top', `${v.top}px`);
     root.dataset.viewport = v.height < 300 ? 'tiny' : v.height <= 520 ? 'compact' : 'regular';
+    const editing = document.activeElement?.matches('input:not([type="checkbox"]):not([type="range"]), textarea');
+    // Keep actions stationary between input blur and the keyboard's closing resize.
+    root.dataset.keyboard = (v.height < 210 || v.height < window.innerHeight * .75) && (editing || root.dataset.keyboard === 'open') ? 'open' : 'closed';
     window.dispatchEvent(new Event('gameviewportchange'));
   };
   const schedule = () => {
@@ -37,11 +40,15 @@ export function watchGameViewport() {
   };
   apply();
   window.addEventListener('resize', schedule);
+  document.addEventListener('focusin', schedule);
+  document.addEventListener('focusout', schedule);
   window.visualViewport?.addEventListener('resize', schedule);
   window.visualViewport?.addEventListener('scroll', schedule);
   return () => {
     cancelAnimationFrame(frame);
     window.removeEventListener('resize', schedule);
+    document.removeEventListener('focusin', schedule);
+    document.removeEventListener('focusout', schedule);
     window.visualViewport?.removeEventListener('resize', schedule);
     window.visualViewport?.removeEventListener('scroll', schedule);
   };

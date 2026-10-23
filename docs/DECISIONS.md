@@ -1,5 +1,19 @@
 # Decisions
 
+- **Mobile authentication and touch sizing (2026-10-23):** remove the blocking
+  orientation overlay and the automatic portrait pause. Keep Title install buttons
+  in document flow, use readable mobile type and 44px minimum finger targets,
+  scroll short menus and keep landscape pause actions in a compact grid. Login and
+  signup have labelled 16px inputs, an independently scrolling form body, always
+  reachable action/close buttons and a single action row above the keyboard. Focus
+  follows VisualViewport offsets; preserve the keyboard layout during input blur
+  until its closing resize so Submit cannot move away during a tap. Mode changes
+  reset validation, errors scroll into view, and unavailable sound cannot block
+  opening authentication. `tools/qa/mobile-auth.mjs` exercises production App and
+  auth in WebKit/Chrome at six sizes, including 150px keyboard viewports and
+  rotation, using intercepted API responses (no test accounts created). Actual
+  Title auth entry and menu-to-race flows are checked by `mobile-menus.mjs`.
+
 - **iPhone landscape controls and visible viewport (2026-10-23):** size the canvas,
   HUD, menus and dialogs from VisualViewport, including Safari's expanded URL bar,
   keyboard offsets and safe insets. The renderer and rear-view viewport share those

@@ -12,7 +12,6 @@ import { AuthModal, PromoModal } from './screens/Auth';
 import { Modal } from './common';
 import { audio } from '../audio/engine';
 import { useSettings } from '../core/settings';
-import { isMobile } from '../core/renderer';
 import { useProfile } from '../net/profileStore';
 import { MobileDisplay } from './MobileDisplay';
 
@@ -84,7 +83,7 @@ export function App() {
       {screen === 'settings' && <Settings />}
       {screen === 'missions' && <Missions />}
       {screen === 'profile' && <Profile />}
-      {(modal === 'login' || modal === 'signup') && <AuthModal kind={modal} />}
+      {(modal === 'login' || modal === 'signup') && <AuthModal key={modal} kind={modal} />}
       {modal === 'promo' && <PromoModal />}
       {modal === 'gate' && <PromoModal gate />}
       {modal === 'attendance' && <AttendanceModal />}
@@ -102,12 +101,6 @@ export function App() {
         </Modal>
       )}
       <MobileDisplay />
-      <div className={`rotate-overlay ${isMobile ? 'mobile' : ''}`}>
-        <div>
-          <div className="phone">📱</div>
-          <p>휴대폰을 가로로 돌려주세요</p>
-        </div>
-      </div>
     </>
   );
 }

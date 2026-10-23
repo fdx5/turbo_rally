@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../game/app';
 import { useProfile } from '../../net/profileStore';
 import { Modal, sfx } from '../common';
@@ -7,7 +7,8 @@ import { audio } from '../../audio/engine';
 const BANNED = ['바보', '멍청', '시발', 'fuck', 'shit', '병신', '개새'];
 export function validateSignup(id: string, pw: string, pw2: string, nick: string): string | null {
   if (!/^[a-z0-9_]{4,16}$/.test(id)) return '아이디는 4~16자의 영소문자·숫자·_ 만 쓸 수 있어요';
-  if (pw.length < 8 || !/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw)) return '비밀번호는 8자 이상, 영문과 숫자를 섞어 주세요';
+  if (pw.length < 8 || !/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw))
+    return '비밀번호는 8자 이상, 영문과 숫자를 섞어 주세요';
   if (pw !== pw2) return '비밀번호 확인이 달라요';
   if (nick.length < 2 || nick.length > 10) return '닉네임은 2~10자로 해 주세요';
   if (BANNED.some((b) => nick.toLowerCase().includes(b))) return '사용할 수 없는 닉네임이에요';
@@ -24,7 +25,36 @@ export function AuthModal({ kind }: { kind: 'login' | 'signup' }) {
   const [remember, setRemember] = useState(true);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const body = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (err && body.current) body.current.scrollTop = body.current.scrollHeight;
+  }, [err]);
+  // Scroll only the form body: Safari may pan its visual viewport when the keyboard opens.
+  useEffect(() => {
+    let frame = 0;
+    const reveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const el = document.activeElement;
+        const container = body.current;
+        if (!(el instanceof HTMLInputElement) || !container?.contains(el)) return;
+        const field = el.getBoundingClientRect(),
+          area = container.getBoundingClientRect();
+        if (field.bottom > area.bottom - 4) container.scrollTop += field.bottom - area.bottom + 4;
+        else if (field.top < area.top + 4) container.scrollTop -= area.top - field.top + 4;
+      });
+    };
+    body.current?.addEventListener('focusin', reveal);
+    window.addEventListener('gameviewportchange', reveal);
+    const container = body.current;
+    return () => {
+      cancelAnimationFrame(frame);
+      container?.removeEventListener('focusin', reveal);
+      window.removeEventListener('gameviewportchange', reveal);
+    };
+  }, []);
   const submit = async () => {
+    if (busy) return;
     setErr('');
     if (kind === 'signup') {
       const v = validateSignup(id, pw, pw2, nick);
@@ -45,39 +75,121 @@ export function AuthModal({ kind }: { kind: 'login' | 'signup' }) {
     }
   };
   return (
-    <Modal onClose={() => set({ modal: null })}>
-      <h2 style={{ margin: '0 0 6px', fontSize: 30 }}>{kind === 'login' ? '로그인 🔑' : '회원가입 🎀'}</h2>
-      {kind === 'signup' && <p style={{ margin: '0 0 12px', color: '#2F6FDB' }}>가입하면 5,000G + 한정 「웰컴 리본 모자」를 드려요!</p>}
-      {!server && <p style={{ color: '#FF5A36' }}>지금은 서버에 연결할 수 없어요 (오프라인 모드).</p>}
+    <Modal
+      className="auth-modal"
+      label={kind === 'login' ? '로그인' : '회원가입'}
+      onClose={() => set({ modal: null })}
+    >
+      <header className="auth-header">
+        <h2>{kind === 'login' ? '로그인 🔑' : '회원가입 🎀'}</h2>
+        <button
+          type="button"
+          className="btn icon ghost"
+          aria-label="닫기"
+          onClick={() => set({ modal: null })}
+        >
+          ✕
+        </button>
+      </header>
       <form
+        className="auth-form"
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
-        style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
       >
-        <input className="input" placeholder="아이디 (영소문자·숫자·_ 4~16자)" value={id} onChange={(e) => setId(e.target.value.toLowerCase())} autoComplete="username" />
-        <input className="input" type="password" placeholder="비밀번호 (8자 이상, 영문+숫자)" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={kind === 'login' ? 'current-password' : 'new-password'} />
-        {kind === 'signup' && (
-          <>
-            <input className="input" type="password" placeholder="비밀번호 확인" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
-            <input className="input" placeholder="닉네임 (2~10자, 한글 가능)" value={nick} onChange={(e) => setNick(e.target.value)} maxLength={10} />
-          </>
-        )}
-        {kind === 'login' && (
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> 로그인 유지 (30일)
-          </label>
-        )}
-        {err && <div style={{ color: '#E8412C' }}>{err}</div>}
-        <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+        <div className="auth-body" ref={body}>
+          {kind === 'signup' && <p className="auth-benefit">가입 선물: 5,000G + 웰컴 리본 모자</p>}
+          {!server && <p className="auth-warning">서버에 연결할 수 없어요. 연결 후 다시 시도해 주세요.</p>}
+          <div className="auth-fields">
+            <label>
+              아이디
+              <input
+                className="input"
+                name="username"
+                placeholder="영소문자·숫자·_ 4~16자"
+                required
+                value={id}
+                onChange={(e) => setId(e.target.value.toLowerCase())}
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+              />
+            </label>
+            <label>
+              비밀번호
+              <input
+                className="input"
+                name="password"
+                type="password"
+                placeholder={kind === 'signup' ? '8자 이상, 영문 + 숫자' : '비밀번호 입력'}
+                required
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                autoComplete={kind === 'login' ? 'current-password' : 'new-password'}
+                enterKeyHint={kind === 'login' ? 'go' : 'next'}
+              />
+            </label>
+            {kind === 'signup' && (
+              <>
+                <label>
+                  비밀번호 확인
+                  <input
+                    className="input"
+                    name="password-confirm"
+                    type="password"
+                    placeholder="비밀번호 다시 입력"
+                    required
+                    value={pw2}
+                    onChange={(e) => setPw2(e.target.value)}
+                    autoComplete="new-password"
+                    enterKeyHint="next"
+                  />
+                </label>
+                <label>
+                  닉네임
+                  <input
+                    className="input"
+                    name="nickname"
+                    placeholder="2~10자, 한글 가능"
+                    required
+                    value={nick}
+                    onChange={(e) => setNick(e.target.value)}
+                    maxLength={10}
+                    autoComplete="nickname"
+                    enterKeyHint="go"
+                  />
+                </label>
+              </>
+            )}
+          </div>
+          {kind === 'login' && (
+            <label className="auth-remember">
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />{' '}
+              로그인 유지 (30일)
+            </label>
+          )}
+          {err && (
+            <div className="auth-error" role="alert">
+              {err}
+            </div>
+          )}
+        </div>
+        <footer className="auth-actions">
           <button className="btn" type="submit" disabled={busy}>
             {busy ? '잠시만요…' : kind === 'login' ? '로그인' : '가입하기'}
           </button>
-          <button type="button" className="btn ghost" onClick={() => set({ modal: kind === 'login' ? 'signup' : 'login' })}>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={busy}
+            onClick={() => set({ modal: kind === 'login' ? 'signup' : 'login' })}
+          >
             {kind === 'login' ? '회원가입' : '로그인'}
           </button>
-        </div>
+        </footer>
       </form>
     </Modal>
   );
@@ -90,10 +202,16 @@ export function PromoModal({ gate }: { gate?: boolean }) {
     <Modal onClose={gate ? undefined : () => set({ modal: null })}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 64 }}>🎀</div>
-        <h2 style={{ margin: 0, fontSize: 30 }}>{gate ? '계속 달리려면 회원가입이 필요해요!' : '회원가입하고 선물 받아요!'}</h2>
+        <h2 style={{ margin: 0, fontSize: 30 }}>
+          {gate ? '계속 달리려면 회원가입이 필요해요!' : '회원가입하고 선물 받아요!'}
+        </h2>
         <ul style={{ textAlign: 'left', fontSize: 19, lineHeight: 1.7 }}>
-          <li>🪙 가입 보너스 <b>5,000G</b></li>
-          <li>🎩 한정 아이템 <b>「웰컴 리본 모자」</b></li>
+          <li>
+            🪙 가입 보너스 <b>5,000G</b>
+          </li>
+          <li>
+            🎩 한정 아이템 <b>「웰컴 리본 모자」</b>
+          </li>
           <li>🏆 랭킹 등록 · 기기 간 이어하기</li>
           <li>🛍️ 상점 이용 & 트랙 4~8 해금</li>
         </ul>
@@ -117,7 +235,11 @@ export function PromoModal({ gate }: { gate?: boolean }) {
             </button>
           )}
         </div>
-        {gate && <p style={{ fontSize: 14, color: '#2F6FDB' }}>타임어택·연습 주행은 게스트도 계속 즐길 수 있어요 (타임어택 하루 3회)</p>}
+        {gate && (
+          <p style={{ fontSize: 14, color: '#2F6FDB' }}>
+            타임어택·연습 주행은 게스트도 계속 즐길 수 있어요 (타임어택 하루 3회)
+          </p>
+        )}
       </div>
     </Modal>
   );

@@ -41,7 +41,8 @@ describe('Safari visible viewport', () => {
     const style = { setProperty: vi.fn() },
       root = { style, dataset: {} as Record<string, string> };
     vi.stubGlobal('window', win);
-    vi.stubGlobal('document', { documentElement: root });
+    const doc = Object.assign(new EventTarget(), { documentElement: root, activeElement: null as null | { matches: () => boolean } });
+    vi.stubGlobal('document', doc);
     vi.stubGlobal('requestAnimationFrame', (fn: () => void) => {
       fn();
       return 1;
@@ -50,6 +51,22 @@ describe('Safari visible viewport', () => {
     const stop = watchGameViewport();
     expect(style.setProperty).toHaveBeenCalledWith('--app-height', '250px');
     expect(root.dataset.viewport).toBe('tiny');
+    expect(root.dataset.keyboard).toBe('closed');
+    // A small viewport alone is an address bar; the compact auth bar requires an active editor.
+    doc.activeElement = { matches: () => true };
+    viewport.height = 150;
+    doc.dispatchEvent(new Event('focusin'));
+    expect(root.dataset.keyboard).toBe('open');
+    win.innerHeight = 150;
+    viewport.dispatchEvent(new Event('resize'));
+    expect(root.dataset.keyboard).toBe('open');
+    win.innerHeight = 390;
+    doc.activeElement = null;
+    doc.dispatchEvent(new Event('focusout'));
+    expect(root.dataset.keyboard).toBe('open');
+    viewport.height = 390;
+    viewport.dispatchEvent(new Event('resize'));
+    expect(root.dataset.keyboard).toBe('closed');
     viewport.height = 390;
     viewport.dispatchEvent(new Event('resize'));
     expect(style.setProperty).toHaveBeenLastCalledWith('--app-top', '0px');

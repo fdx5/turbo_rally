@@ -29,6 +29,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
+    await page.route('**/api/auth/login', route => route.fulfill({ status: 401, json: { error: '아이디 또는 비밀번호를 확인해 주세요.' } }));
     await page.goto(base);
     await page.getByText('게스트로 시작', { exact: true }).waitFor({ timeout: 60000 });
     await page.evaluate((inset) => {
@@ -45,14 +46,29 @@ try {
           }),
       );
       for (const r of boxes)
+      {
+        assert(r.w >= 44 && r.h >= 44, `small touch target ${JSON.stringify(r)}`);
         assert(
           r.x >= -2 && r.y >= -2 && r.x + r.w <= size.width + 2 && r.y + r.h <= size.height + 2,
           `${size.width}x${size.height}: clipped ${JSON.stringify(r)}`,
         );
+      }
     };
     const shot = async (name) => page.screenshot({ path: `${out}/${size.width}x${size.height}-${name}.png` });
     await bounds('.title-screen .btn');
     await shot('title');
+    await page.locator('.title-auth-actions').getByRole('button', { name: '로그인', exact: true }).click();
+    await page.getByLabel('아이디', { exact: true }).fill('mobile_test');
+    await page.getByLabel('비밀번호', { exact: true }).fill('password123');
+    await page.locator('.auth-actions button[type=submit]').click();
+    await page.getByRole('alert').waitFor();
+    await bounds('.auth-actions .btn,.auth-header .btn');
+    await page.getByRole('button', { name: '닫기', exact: true }).click();
+    await page.locator('.title-auth-actions').getByRole('button', { name: '회원가입', exact: true }).click();
+    await page.getByLabel('닉네임', { exact: true }).waitFor();
+    await bounds('.auth-actions .btn,.auth-header .btn');
+    await shot('signup');
+    await page.getByRole('button', { name: '닫기', exact: true }).click();
     await page.getByText('게스트로 시작', { exact: true }).click();
     await page.locator('.main-menu').waitFor();
     await bounds('.main-menu .btn,.main-menu .mode-tile,.main-menu .mini-tile');
@@ -113,6 +129,7 @@ try {
     await bounds('.drive-button');
     await page.getByRole('button', { name: '일시정지' }).click();
     await page.getByRole('button', { name: '계속하기', exact: false }).waitFor();
+    await bounds('.pause-actions .btn');
     await shot('pause');
     assert.deepEqual(errors, [], errors.join('\n'));
     results.push({ ...size, passed: true });

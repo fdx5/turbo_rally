@@ -87,15 +87,22 @@ export function Modal({
   children,
   onClose,
   wide,
+  className = '',
+  label,
 }: {
   children: ReactNode;
   onClose?: () => void;
   wide?: boolean;
+  className?: string;
+  label?: string;
 }) {
   return (
-    <div className="modal-bg" onClick={() => onClose?.()}>
+    <div className={`modal-bg ${className ? `${className}-backdrop` : ''}`} onClick={() => onClose?.()}>
       <div
-        className="panel modal pop-in"
+        className={`panel modal pop-in ${className}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
         style={wide ? { width: 'min(760px, 94vw)' } : undefined}
         onClick={(e) => e.stopPropagation()}
       >

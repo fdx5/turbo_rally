@@ -34,9 +34,6 @@ export class GameShell {
     };
     document.addEventListener('visibilitychange', () => { if (document.hidden) pauseInactive(); });
     window.addEventListener('blur', pauseInactive);
-    window.addEventListener('resize', () => {
-      if (navigator.maxTouchPoints > 0 && window.innerHeight > window.innerWidth) pauseInactive();
-    });
   }
   startRace(cfg: RaceConfig, onFinish: (r: RaceResult) => void) {
     this.endRace();

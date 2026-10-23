@@ -50,9 +50,9 @@ export function RaceView() {
       {phase !== 'loading' && <Hud onPause={() => setPaused(true)} />}
       {phase !== 'loading' && isTouch && !paused && <TouchControls />}
       {paused && !settings && (
-        <Modal>
+        <Modal className="pause-modal" label="일시정지">
           <h2 style={{ marginTop: 0, textAlign: 'center' }}>⏸ 일시정지 — {trackName}</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'stretch' }}>
+          <div className="pause-actions" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'stretch' }}>
             <button
               className="btn big"
               onClick={() => {
