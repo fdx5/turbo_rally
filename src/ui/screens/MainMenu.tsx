@@ -14,6 +14,7 @@ import { VEHICLE_BY_ID } from '../../data/vehicles';
 import { TRACKS } from '../../data/tracks';
 import { countStars, xpToNext } from '../../../shared/economy';
 import { InstallButton, FullscreenButton } from '../MobileDisplay';
+import { ShowroomSpace } from '../ShowroomSpace';
 
 export function MainMenu() {
   const { go, set } = useApp();
@@ -61,16 +62,18 @@ export function MainMenu() {
         </div>
         <button
           className="btn lav"
+          aria-label="대시보드"
           onClick={() => {
             sfx.click();
             go('dashboard');
           }}
         >
-          <I name="chart" size={24} /> 대시보드
+          <I name="chart" size={24} /> <span>대시보드</span>
         </button>
       </div>
       <div className="menu-mode-list" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16, paddingLeft: 10 }}>
-        <div className="mode-tile" onClick={() => pick('race')}>
+        <div className="menu-primary">
+        <button type="button" className="mode-tile" onClick={() => pick('race')}>
           <div className="badge">
             <I name="flag" size={40} />
           </div>
@@ -78,8 +81,8 @@ export function MainMenu() {
             <div className="t">대전 레이스</div>
             <div className="s">8명이 함께 달리는 아이템 배틀 · 3랩</div>
           </div>
-        </div>
-        <div className="mode-tile" style={{ ['--c' as string]: '#3f9cff', marginLeft: 22 }} onClick={() => pick('timeattack')}>
+        </button>
+        <button type="button" className="mode-tile" style={{ ['--c' as string]: '#3f9cff', marginLeft: 22 }} onClick={() => pick('timeattack')}>
           <div className="badge">
             <I name="timer" size={40} />
           </div>
@@ -87,8 +90,8 @@ export function MainMenu() {
             <div className="t">타임어택</div>
             <div className="s">고스트와 겨루는 기록 도전 · 메달 획득</div>
           </div>
-        </div>
-        <div className="mode-tile" style={{ ['--c' as string]: '#3fc46e', marginLeft: 44, width: 'min(360px, 38vw)' }} onClick={() => pick('practice')}>
+        </button>
+        <button type="button" className="mode-tile" style={{ ['--c' as string]: '#3fc46e', marginLeft: 44, width: 'min(360px, 38vw)' }} onClick={() => pick('practice')}>
           <div className="badge">
             <I name="car" size={40} />
           </div>
@@ -96,7 +99,9 @@ export function MainMenu() {
             <div className="t">연습 주행</div>
             <div className="s">부담 없이 코스 익히기</div>
           </div>
+        </button>
         </div>
+        <ShowroomSpace label={`${CHAR_BY_ID[profile.selectedChar].name} · ${VEHICLE_BY_ID[profile.selectedVehicle]?.name}`} />
         <div className="menu-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
           {(
             [
@@ -108,7 +113,8 @@ export function MainMenu() {
               ['user', '프로필', () => go('profile'), 0],
             ] as [IconName, string, () => void, number | string][]
           ).map(([icon, label, fn, badge]) => (
-            <div
+            <button
+              type="button"
               key={label}
               className="mini-tile"
               onClick={() => {
@@ -119,7 +125,7 @@ export function MainMenu() {
               <I name={icon} size={38} />
               {label}
               {badge ? <span className="dot">{badge}</span> : null}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -152,7 +158,7 @@ export function MainMenu() {
           </button>
         ) : (
           <button className="btn mint" onClick={() => set({ modal: 'signup' })}>
-            회원가입하고 기록 저장
+            가입 · 기록 저장
           </button>
         )}
       </div>

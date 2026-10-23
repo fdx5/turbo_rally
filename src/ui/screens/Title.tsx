@@ -9,6 +9,9 @@ import { sfx } from '../common';
 import { Logo } from '../Logo';
 import { I } from '../icons';
 import { InstallButton, FullscreenButton } from '../MobileDisplay';
+import { ShowroomSpace } from '../ShowroomSpace';
+import { CHAR_BY_ID } from '../../data/characters';
+import { VEHICLE_BY_ID } from '../../data/vehicles';
 
 export function Loading() {
   const { loadingMsg, loadingPct } = useApp();
@@ -47,7 +50,7 @@ export function Title() {
         <div className="pop-in">
           <Logo width={Math.min(480, window.innerWidth * 0.42)} />
         </div>
-        <div className="chip" style={{ margin: '18px 0 26px', fontSize: 18, transform: 'rotate(-2deg)' }}>
+        <div className="chip title-tagline" style={{ margin: '18px 0 26px', fontSize: 18, transform: 'rotate(-2deg)' }}>
           8인 파스텔 카트 레이싱 · 드리프트 · 아이템 배틀
         </div>
         <div className="title-actions" style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-start' }}>
@@ -83,6 +86,7 @@ export function Title() {
           {!server && <div className="chip" style={{ fontSize: 14 }}>오프라인 모드 · 게스트 진행도는 이 기기에 저장돼요</div>}
         </div>
       </div>
+      <ShowroomSpace label={`${CHAR_BY_ID[profile.selectedChar].name} · ${VEHICLE_BY_ID[profile.selectedVehicle]?.name}`} />
     </div>
   );
 }

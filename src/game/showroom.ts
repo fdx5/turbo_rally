@@ -13,6 +13,8 @@ import { damp } from '../core/math';
 import { buildClouds, updateClouds } from '../art/sky';
 import { THEMES } from '../tracks/themes';
 import { buildSky } from '../art/sky';
+import { gameViewport } from '../core/mobileDisplay';
+import { frameShowroom, getShowroomArea, visibleShowroomBounds } from './showroomLayout';
 
 export type ShowMode = 'title' | 'menu' | 'characters' | 'vehicle' | 'shop' | 'podium' | 'track';
 
@@ -42,6 +44,9 @@ export class Showroom {
   private sky: THREE.Mesh;
   private confettiT = 0;
   private podiumGroup = new THREE.Group();
+  private previewBounds = new THREE.Box3();
+  private previewMenuFrom = new THREE.Vector3(-4, 2, 8);
+  private previewMenuLook = new THREE.Vector3();
 
   constructor(private R: Renderer) {
     const th = THEMES.candy;
@@ -234,7 +239,12 @@ export class Showroom {
     this.camera.position.copy(this.camPos);
     this.camera.position.x += Math.sin(this.t * 0.3) * 0.15;
     this.camera.lookAt(this.camLook);
-    for (const c of this.lineup) {
+    const preview = getShowroomArea();
+    for (const [i, c] of this.lineup.entries()) {
+      c.root.visible = this.mode === 'characters' && (!preview || c.def.id === this.selectedChar);
+      const a = ((i - 3.5) / 7) * 2.2;
+      c.root.position.set(preview ? 0 : Math.sin(a) * 5.4, 0.72 + c.standHeight, preview ? 0 : Math.cos(a) * 5.4 - 5.4 + 1.2);
+      c.root.rotation.y = preview ? 0 : -a * 0.6;
       c.update(dt);
       const sel = c.def.id === this.selectedChar;
       const s = c.root.scale.x + ((sel ? 1.18 : 1) - c.root.scale.x) * Math.min(1, dt * 8);
@@ -248,6 +258,16 @@ export class Showroom {
       this.kart.character.update(dt, { steer: Math.sin(this.t * 0.8) * 0.3, speed: 0 });
     }
     this.shopChar?.update(dt);
+    const subject = this.mode === 'characters'
+      ? this.lineup.find(c => c.def.id === this.selectedChar)?.root
+      : ['title', 'menu', 'vehicle'].includes(this.mode) ? this.kart?.root : null;
+    if (preview && subject) {
+      const v = gameViewport();
+      visibleShowroomBounds(subject, this.previewBounds);
+      frameShowroom(this.camera, this.previewBounds, preview, v.width, v.height,
+        this.mode === 'menu' ? this.previewMenuFrom : this.targetPos,
+        this.mode === 'menu' ? this.previewMenuLook : this.targetLook);
+    } else if (this.camera.view?.enabled) this.camera.clearViewOffset();
     for (const p of this.podium) {
       p.vehicle.update(dt, { speed: 0, steer: 0, drift: 0, air: false, landT: 0, boost: false, t: this.t, spinAngle: 0, skillT: 0, beacons: true });
       p.character.update(dt, { speed: 0 });

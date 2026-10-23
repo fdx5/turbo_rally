@@ -14,6 +14,7 @@ import { vehicleThumb, portrait } from '../portraits';
 import { DIFF, type Difficulty } from '../../ai/driver';
 import { startRaceFlow } from '../raceFlow';
 import { I } from '../icons';
+import { ShowroomSpace } from '../ShowroomSpace';
 
 export function ModeSelect() {
   const { set, go, difficulty } = useApp();
@@ -197,7 +198,7 @@ export function CharacterSelect() {
   return (
     <div className="screen character-select">
       <TopBar title="캐릭터 선택" />
-      <div className="spacer" />
+      <div className="spacer character-stage"><ShowroomSpace label={`${c.name} · ${c.motif}`} caption={false} /></div>
       <div
         className="panel character-info"
         style={{ alignSelf: 'center', padding: '10px 18px', textAlign: 'center', marginBottom: 10 }}
@@ -316,8 +317,8 @@ export function VehicleSelect() {
   return (
     <div className="screen vehicle-select">
       <TopBar title="차량 선택" />
-      <div style={{ flex: 1, display: 'flex', gap: 14, minHeight: 0, marginTop: 10 }}>
-        <div className="scroll panel" style={{ width: 'min(330px, 34vw)', padding: 10 }}>
+      <div className="vehicle-layout" style={{ flex: 1, display: 'flex', gap: 14, minHeight: 0, marginTop: 10 }}>
+        <div className="scroll panel vehicle-options" style={{ width: 'min(330px, 34vw)', padding: 10 }}>
           <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
             {VEHICLES.map((vd) => (
               <div
@@ -337,7 +338,7 @@ export function VehicleSelect() {
             ))}
           </div>
         </div>
-        <div className="spacer" />
+        <div className="spacer vehicle-stage"><ShowroomSpace label={`${CHAR_BY_ID[profile.selectedChar].name} · ${v.name}`} caption={false} /></div>
         <div
           className="panel vehicle-summary"
           style={{

@@ -1,5 +1,17 @@
 # Decisions
 
+- **Mobile landscape showroom space (2026-10-23):** compact menu controls now sit
+  to the left and right of a reserved central model preview. Short landscape
+  menus use 36–40px controls with smaller typography, borders and shadows; race
+  touch controls and authentication keep their existing targets. Title, character
+  and vehicle selection also reserve model space instead of covering the canvas.
+  ResizeObserver shares that space with the camera, which fits visible geometry
+  and shifts its projection into the available rectangle. Hidden shields/clouds
+  do not shrink the displayed car. Mobile character selection shows the selected
+  character on the central stage; desktop retains the full lineup. Validation:
+  193 tests and build; six landscape sizes with safe insets, checking model-space
+  clearance and screenshots; three complete authentication/menu-to-race flows.
+
 - **Mobile authentication and touch sizing (2026-10-23):** remove the blocking
   orientation overlay and the automatic portrait pause. Keep Title install buttons
   in document flow, use readable mobile type and 44px minimum finger targets,
